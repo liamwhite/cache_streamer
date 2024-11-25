@@ -8,7 +8,7 @@ TODO: testing, more headers, TTL-based expiration, if-modified-since, if-none-ma
 
 - proxy_cache appears to download the full file first before starting to deliver it
 - noticeable delay before stream starts for larger files
-- difficult to completely control headers and purging without lua/openresty
+- difficult to completely control headers without lua/openresty
 - difficult to implement access control for purging without lua/openresty
 
 ## Why not varnish
