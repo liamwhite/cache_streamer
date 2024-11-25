@@ -91,7 +91,7 @@ impl<T: ContiguousCollection> IntrusiveMap<T> {
         C: ContiguousCollection<Slice = C>,
         T: From<C>,
     {
-        let mut it = self.blocks.upper_bound_mut(Bound::Included(&offset));
+        let mut it = self.blocks.lower_bound_mut(Bound::Included(&offset));
         let mut out = HoleTracker::default();
 
         while !data.is_empty() {

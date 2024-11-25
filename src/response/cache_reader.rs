@@ -121,7 +121,7 @@ impl<B: Backend + 'static> CacheReader<B> {
         stream::unfold(
             (start, end, self.clone()),
             move |(current, end, this)| async move {
-                // Check bounds.
+                // Check for completion.
                 if current >= end {
                     return None;
                 }
@@ -160,7 +160,7 @@ impl<B: Backend + 'static> CacheReader<B> {
             return Ok(Ok(chunk));
         }
 
-        // 2. Stream aborted.
+        // 2. Not possible to read further.
         if let StreamStatus::Aborted = &inner.status {
             return Ok(Err(()));
         }
@@ -175,15 +175,17 @@ impl<B: Backend + 'static> CacheReader<B> {
 
         while let Some(res) = stream.next().await {
             let bytes = res.map_err(|_| ())?;
-            offset += bytes.len();
-
-            // Check to make sure we aren't exceeding the length we were created with
-            if offset > self.length {
-                return Err(());
-            }
+            let len = bytes.len();
 
             self.inner.lock().completed.put_new(offset, bytes);
             self.signal.notify_waiters();
+
+            offset += len;
+
+            // Stop if the server misbehaved and sent more bytes than it should have.
+            if offset > self.length {
+                return Err(());
+            }
         }
 
         Ok(())
@@ -208,18 +210,16 @@ impl<B: Backend + 'static> CacheReader<B> {
 
     fn promise_response(self: &Arc<Self>, range: Range<usize>) {
         let range = {
-            // Don't do anything if the range is empty.
+            // Request might be satisfied before checking.
             if range.is_empty() {
                 return;
             }
 
-            // Check to see if we even need to fetch this range.
-            let mut inner = self.inner.lock();
-
             // Update the area we are about to cover with this request.
-            match inner.promised.put_new(range.start, range.len()) {
-                None => return,
-                Some(range) => range,
+            // Return early if we already promised the entire range.
+            match self.inner.lock().promised.put_new(range.start, range.len()) {
+                Some(range) if !range.is_empty() => range,
+                _ => return,
             }
         };
 
