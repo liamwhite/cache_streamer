@@ -49,12 +49,8 @@ impl Server {
         // The cache may also contain partial items which have not finished streaming yet.
         // This is fine because it will stream any available data to each new client, and
         // once caught up, stream data as it is received from the upstream.
-        {
-            let mut cache = self.cache.lock();
-
-            if let Some(reader) = cache.get(path) {
-                return reader_response(method, range, reader);
-            }
+        if let Some(reader) = self.cache.lock().get(path) {
+            return reader_response(method, range, reader);
         }
 
         // The item was not in the cache, so make a request.

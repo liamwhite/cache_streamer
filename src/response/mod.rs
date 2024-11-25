@@ -29,7 +29,10 @@ pub async fn fetch<B: Backend>(
     max_cache_length: usize,
 ) -> FetchResponse {
     let response = match backend.fetch(method, path, request_range).await {
-        Err(..) => return FetchResponse::Err,
+        Err(err) => {
+            log::error!("{}", err.to_string());
+            return FetchResponse::Err
+        },
         Ok(resp) => resp,
     };
 

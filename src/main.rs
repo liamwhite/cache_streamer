@@ -19,6 +19,8 @@ const MAX_LENGTH_FOR_CACHED_OBJECTS: usize = 100_000_000;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let state = Arc::new(Server::new(
         TRANSIENT_CACHE_SIZE,
         MAX_LENGTH_FOR_CACHED_OBJECTS,
@@ -32,6 +34,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+    log::info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -44,6 +47,7 @@ async fn client_error(req: Request) -> impl IntoResponse {
 }
 
 async fn service(service: State<Arc<Server>>, Path(path): Path<String>, req: Request) -> Response {
+    log::debug!("{} /{}", req.method().as_str(), path);
     // TODO range
     service
         .stream_response(req.method(), &path, &None)
