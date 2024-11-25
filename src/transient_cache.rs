@@ -1,4 +1,4 @@
-use intrusive_lru_cache::{GetOrInsertResult, LRUCache};
+use intrusive_lru_cache::LRUCache;
 use std::cell::Cell;
 
 pub struct TransientCache<T: Clone> {
@@ -29,20 +29,15 @@ impl<T: Clone> TransientCache<T> {
         })
     }
 
-    pub fn insert_or_get(&mut self, key: String, size_bytes: usize, inner: T) -> T {
+    pub fn get_or_insert(&mut self, key: &str, size_bytes: usize, inner: T) -> T {
         self.shrink();
 
-        let entry = match self.cache.get_or_insert(key, move || Entry::new(size_bytes, inner)) {
-            GetOrInsertResult::Existed(entry, ..) => {
-                entry.update_use_count();
-                entry
-            }
-            GetOrInsertResult::Inserted(entry) => {
-                self.size_bytes += size_bytes;
-                entry
-            }
-        };
+        let entry = self.cache.get_or_insert2(key, || {
+            self.size_bytes += size_bytes;
+            Entry::new(size_bytes, inner)
+        });
 
+        entry.update_use_count();
         entry.inner.clone()
     }
 

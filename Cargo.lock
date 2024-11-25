@@ -808,9 +808,9 @@ dependencies = [
 
 [[package]]
 name = "intrusive-lru-cache"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccd3c4d2363569ed2882e03d2a68ee5b17a3e7c182a1b94944798b6d6ed3614b"
+checksum = "83a8fab2b44283773d68058a6e7c71a731aa739300551c33606ccd772bcac385"
 dependencies = [
  "intrusive-collections",
 ]

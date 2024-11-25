@@ -73,7 +73,7 @@ impl Server {
                     let mut cache = self.cache.lock();
                     let length = stream.length;
                     let reader = ReaderType::new(self.backend.clone(), path.to_owned(), stream);
-                    cache.insert_or_get(path.to_owned(), length, reader)
+                    cache.get_or_insert(path, length, reader)
                 };
 
                 reader_response(method, range, reader)
