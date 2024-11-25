@@ -135,13 +135,13 @@ impl<B: Backend + 'static> CacheReader<B> {
                     }
                 };
 
-                return match result {
+                match result {
                     Ok(bytes) => {
                         let len = bytes.len();
                         Some((Ok(bytes), (current + len, end, this)))
                     }
                     Err(..) => Some((Err("stream aborted".into()), (current, current, this))),
-                };
+                }
             },
         )
     }
