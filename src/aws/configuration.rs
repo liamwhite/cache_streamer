@@ -18,6 +18,8 @@ pub struct EnvironmentConfiguration {
 }
 
 impl EnvironmentConfiguration {
+    // TODO S3
+    #[allow(dead_code)]
     pub fn new() -> Result<Self, VarError> {
         let host = format!("{}:{}", env::var("S3_HOST")?, env::var("S3_PORT")?);
 

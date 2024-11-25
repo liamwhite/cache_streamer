@@ -7,8 +7,9 @@ use crate::sparse::SparseMap;
 use bytes::Bytes;
 use futures::{stream, Stream, StreamExt};
 use headers::{ContentType, HeaderMapExt};
+use http::Method;
 use parking_lot::Mutex;
-use reqwest::{Method, Response};
+use reqwest::Response;
 use tokio::sync::{futures::Notified, Notify};
 
 use super::{fetch, FetchResponse, FetchStream};

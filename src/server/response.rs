@@ -5,8 +5,8 @@ use super::ReaderArc;
 use axum::body::Body;
 use axum::response::Response as AxumResponse;
 use headers::{ContentLength, ContentRange, ContentType};
+use http::{Method, StatusCode};
 use reqwest::Response as ReqwestResponse;
-use reqwest::{Method, StatusCode};
 
 pub fn reader_response(
     method: &Method,

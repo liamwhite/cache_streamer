@@ -1,5 +1,4 @@
 use intrusive_lru_cache::LRUCache;
-use std::cell::Cell;
 
 pub struct TransientCache<T: Clone> {
     cache: LRUCache<String, Entry<T>>,
@@ -9,7 +8,7 @@ pub struct TransientCache<T: Clone> {
 
 struct Entry<T> {
     size_bytes: usize,
-    use_count: Cell<usize>,
+    use_count: usize,
     inner: T,
 }
 
@@ -41,6 +40,8 @@ impl<T: Clone> TransientCache<T> {
         entry.inner.clone()
     }
 
+    // TODO LRU
+    #[allow(dead_code)]
     pub fn remove(&mut self, key: &str) -> Option<T> {
         self.cache.remove(key).map(|entry| entry.inner)
     }
@@ -59,12 +60,12 @@ impl<T> Entry<T> {
     fn new(size_bytes: usize, inner: T) -> Self {
         Self {
             size_bytes,
-            use_count: Cell::new(0),
+            use_count: 0,
             inner,
         }
     }
 
-    fn update_use_count(&self) {
-        self.use_count.set(self.use_count.get().saturating_add(1));
+    fn update_use_count(&mut self) {
+        self.use_count += 1;
     }
 }

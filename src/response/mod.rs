@@ -2,7 +2,8 @@ use std::ops::Range;
 
 use crate::request::backend::Backend;
 pub use cache_reader::CacheReader;
-use reqwest::{Error, Method, Response};
+use http::Method;
+use reqwest::Response;
 use util::{empty_range_if_head, should_cache, try_get_content_range};
 
 pub mod cache_reader;
@@ -17,7 +18,7 @@ pub struct FetchStream {
 pub enum FetchResponse {
     Passthrough(Response),
     Cache(FetchStream),
-    Err(Error),
+    Err,
 }
 
 pub async fn fetch<B: Backend>(
@@ -28,7 +29,7 @@ pub async fn fetch<B: Backend>(
     max_cache_length: usize,
 ) -> FetchResponse {
     let response = match backend.fetch(method, path, request_range).await {
-        Err(err) => return FetchResponse::Err(err),
+        Err(..) => return FetchResponse::Err,
         Ok(resp) => resp,
     };
 

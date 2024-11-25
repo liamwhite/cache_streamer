@@ -12,6 +12,8 @@ pub struct S3Backend<C: Configuration> {
 }
 
 impl<C: Configuration> S3Backend<C> {
+    // TODO S3
+    #[allow(dead_code)]
     pub fn new(config: C) -> Result<Self, ParseError> {
         let url = format!("{}://{}", config.scheme(), config.host());
         let url = url.parse::<Url>()?;

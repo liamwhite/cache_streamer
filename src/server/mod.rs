@@ -2,8 +2,8 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use axum::response::Response;
+use http::{Method, StatusCode};
 use parking_lot::Mutex;
-use reqwest::{Method, StatusCode};
 
 use crate::request::PlainBackend;
 use crate::response::{fetch, CacheReader, FetchResponse};
@@ -78,7 +78,7 @@ impl Server {
 
                 reader_response(method, range, reader)
             }
-            FetchResponse::Err(..) => None,
+            FetchResponse::Err => None,
         }
     }
 }

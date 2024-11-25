@@ -1,5 +1,5 @@
 use headers::{ContentLength, ContentRange, HeaderMap, HeaderMapExt};
-use reqwest::{Method, StatusCode};
+use http::{Method, StatusCode};
 use std::ops::Range;
 
 pub fn should_cache(status: StatusCode) -> bool {

@@ -65,14 +65,9 @@ impl From<HoleTracker> for Option<Range<usize>> {
 #[derive(Default)]
 pub struct IntrusiveMap<T: ContiguousCollection> {
     blocks: RBTree<NodeTreeAdapter<T>>,
-    mapped_size: usize,
 }
 
 impl<T: ContiguousCollection> IntrusiveMap<T> {
-    pub fn mapped_size(&self) -> usize {
-        self.mapped_size
-    }
-
     pub fn get(&self, offset: usize, max_size: usize) -> Option<T::Slice> {
         let requested_range = offset..(offset + max_size);
 
