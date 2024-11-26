@@ -1,26 +1,18 @@
 use std::env;
 use std::env::VarError;
 
-pub trait Configuration: Sync + Send {
-    fn access_key(&self) -> &str;
-    fn secret_key(&self) -> &str;
-    fn region(&self) -> &str;
-    fn scheme(&self) -> &str;
-    fn host(&self) -> &str;
+pub struct Configuration {
+    pub access_key: String,
+    pub secret_key: String,
+    pub region: String,
+    pub scheme: String,
+    pub host: String,
 }
 
-pub struct EnvironmentConfiguration {
-    access_key: String,
-    secret_key: String,
-    region: String,
-    scheme: String,
-    host: String,
-}
-
-impl EnvironmentConfiguration {
+impl Configuration {
     // TODO S3
     #[allow(dead_code)]
-    pub fn new() -> Result<Self, VarError> {
+    pub fn from_env() -> Result<Self, VarError> {
         let host = format!("{}:{}", env::var("S3_HOST")?, env::var("S3_PORT")?);
 
         Ok(Self {
@@ -30,27 +22,5 @@ impl EnvironmentConfiguration {
             scheme: env::var("S3_SCHEME")?,
             host,
         })
-    }
-}
-
-impl Configuration for EnvironmentConfiguration {
-    fn access_key(&self) -> &str {
-        &self.access_key
-    }
-
-    fn secret_key(&self) -> &str {
-        &self.secret_key
-    }
-
-    fn region(&self) -> &str {
-        &self.region
-    }
-
-    fn host(&self) -> &str {
-        &self.host
-    }
-
-    fn scheme(&self) -> &str {
-        &self.scheme
     }
 }

@@ -32,8 +32,8 @@ pub struct Signature {
     pub x_amz_content_sha256: String,
 }
 
-pub struct Signer<'c, C: Configuration> {
-    config: &'c C,
+pub struct Signer<'c> {
+    config: &'c Configuration,
     timestamp_basic: String,
     timestamp_short: String,
 }
@@ -44,8 +44,8 @@ struct Request<'a> {
     body_digest: String,
 }
 
-impl<'c, C: Configuration> Signer<'c, C> {
-    pub fn new(config: &'c C) -> Self {
+impl<'c> Signer<'c> {
+    pub fn new(config: &'c Configuration) -> Self {
         let timestamp = Utc::now();
 
         Self {
@@ -57,11 +57,11 @@ impl<'c, C: Configuration> Signer<'c, C> {
 
     fn derived_signing_key(&self) -> Vec<u8> {
         let date = hmac_sign_bytes(
-            format!("AWS4{}", self.config.secret_key()).as_bytes(),
+            format!("AWS4{}", self.config.secret_key).as_bytes(),
             self.timestamp_short.as_bytes(),
         );
 
-        let region = hmac_sign_bytes(date.as_ref(), self.config.region().as_bytes());
+        let region = hmac_sign_bytes(date.as_ref(), self.config.region.as_bytes());
         let service = hmac_sign_bytes(region.as_ref(), SERVICE.as_bytes());
         let type_ = hmac_sign_bytes(service.as_ref(), AWS4_REQUEST.as_bytes());
 
@@ -71,10 +71,7 @@ impl<'c, C: Configuration> Signer<'c, C> {
     fn credential_scope(&self) -> String {
         format!(
             "{}/{}/{}/{}",
-            self.timestamp_short,
-            self.config.region(),
-            SERVICE,
-            AWS4_REQUEST
+            self.timestamp_short, self.config.region, SERVICE, AWS4_REQUEST
         )
     }
 
@@ -93,7 +90,7 @@ impl<'c, C: Configuration> Signer<'c, C> {
             ),
             request.method,
             request.path,
-            self.config.host(),
+            self.config.host,
             request.body_digest,
             self.timestamp_basic,
             SIGNED_HEADERS,
@@ -133,7 +130,7 @@ impl<'c, C: Configuration> Signer<'c, C> {
                 ", Signature={}"      // signature value
             ),
             AWS4_HMAC_SHA256,
-            self.config.access_key(),
+            self.config.access_key,
             self.credential_scope(),
             SIGNED_HEADERS,
             signature

@@ -1,21 +1,21 @@
 use std::ops::Range;
 
 use super::{backend::Backend, merge_range_request, set_path};
-use crate::aws::{configuration::Configuration, signer::Signer};
+use crate::aws::{Configuration, Signer};
 use reqwest::{Client, Error, Method, Response};
 use url::{ParseError, Url};
 
-pub struct S3Backend<C: Configuration> {
+pub struct S3Backend {
     client: Client,
     base_url: Url,
-    configuration: C,
+    configuration: Configuration,
 }
 
-impl<C: Configuration> S3Backend<C> {
+impl S3Backend {
     // TODO S3
     #[allow(dead_code)]
-    pub fn new(config: C) -> Result<Self, ParseError> {
-        let url = format!("{}://{}", config.scheme(), config.host());
+    pub fn new(config: Configuration) -> Result<Self, ParseError> {
+        let url = format!("{}://{}", config.scheme, config.host);
         let url = url.parse::<Url>()?;
 
         Ok(Self {
@@ -26,7 +26,7 @@ impl<C: Configuration> S3Backend<C> {
     }
 }
 
-impl<C: Configuration> Backend for S3Backend<C> {
+impl Backend for S3Backend {
     async fn fetch(
         &self,
         method: &Method,
@@ -42,7 +42,7 @@ impl<C: Configuration> Backend for S3Backend<C> {
             .header("authorization", signature.authorization)
             .header("x-amz-date", signature.x_amz_date)
             .header("x-amz-content-sha256", signature.x_amz_content_sha256)
-            .header("host", self.configuration.host());
+            .header("host", &self.configuration.host);
         let req = merge_range_request(req, range.clone());
 
         req.send().await

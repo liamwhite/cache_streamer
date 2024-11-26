@@ -31,8 +31,8 @@ pub async fn fetch<B: Backend>(
     let response = match backend.fetch(method, path, request_range).await {
         Err(err) => {
             log::error!("{}", err.to_string());
-            return FetchResponse::Err
-        },
+            return FetchResponse::Err;
+        }
         Ok(resp) => resp,
     };
 
