@@ -2,8 +2,8 @@ use std::error::Error;
 use std::ops::{Deref, Range};
 use std::sync::Arc;
 
+use crate::container::SparseMap;
 use crate::request::backend::Backend;
-use crate::sparse::SparseMap;
 use bytes::Bytes;
 use futures::{stream, Stream, StreamExt};
 use headers::{ContentType, HeaderMapExt};

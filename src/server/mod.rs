@@ -5,9 +5,9 @@ use axum::response::Response;
 use http::{Method, StatusCode};
 use parking_lot::Mutex;
 
+use crate::container::TransientCache;
 use crate::request::PlainBackend;
 use crate::response::{fetch, CacheReader, FetchResponse};
-use crate::transient_cache::TransientCache;
 use response::{error_response, passthrough_response, reader_response};
 
 mod header;

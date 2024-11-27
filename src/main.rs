@@ -8,11 +8,10 @@ use http::{Method, StatusCode};
 use server::Server;
 
 mod aws;
+mod container;
 mod request;
 mod response;
 mod server;
-mod sparse;
-mod transient_cache;
 
 const TRANSIENT_CACHE_SIZE: usize = 2_000_000_000;
 const MAX_LENGTH_FOR_CACHED_OBJECTS: usize = 100_000_000;
