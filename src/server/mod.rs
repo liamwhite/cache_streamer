@@ -11,18 +11,18 @@ use response::{error_response, passthrough_response, reader_response};
 mod header;
 mod response;
 
-pub struct Server<B: Backend> {
+pub struct Server {
     // NOTE: this must be Arc because the cache item lifetimes
     // need to be independent of this server
-    backend: Arc<B>,
-    cache: Mutex<TransientCache<Arc<CacheReader<B>>>>,
+    backend: Arc<dyn Backend>,
+    cache: Mutex<TransientCache<Arc<CacheReader>>>,
     max_length_for_cached_objects: usize,
 }
 
-impl<B: Backend> Server<B> {
+impl Server {
     pub fn new(
-        backend: Arc<B>,
-        cache: TransientCache<Arc<CacheReader<B>>>,
+        backend: Arc<dyn Backend>,
+        cache: TransientCache<Arc<CacheReader>>,
         max_length_for_cached_objects: usize,
     ) -> Self {
         Self {
@@ -54,7 +54,7 @@ impl<B: Backend> Server<B> {
 
         // The item was not in the cache, so make a request.
         match fetch(
-            &*self.backend,
+            &self.backend,
             method,
             path,
             request_range,

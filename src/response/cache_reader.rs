@@ -36,8 +36,8 @@ impl InnerStream {
     }
 }
 
-pub struct CacheReader<B: Backend> {
-    backend: Arc<B>,
+pub struct CacheReader {
+    backend: Arc<dyn Backend>,
     path: String,
     length: usize,
     content_type: Option<ContentType>,
@@ -45,13 +45,13 @@ pub struct CacheReader<B: Backend> {
     signal: Notify,
 }
 
-struct StreamGuard<B: Backend> {
-    reader: Arc<CacheReader<B>>,
+struct StreamGuard {
+    reader: Arc<CacheReader>,
     canceled: bool,
 }
 
-impl<B: Backend> StreamGuard<B> {
-    fn new(reader: Arc<CacheReader<B>>) -> Self {
+impl StreamGuard {
+    fn new(reader: Arc<CacheReader>) -> Self {
         Self {
             reader,
             canceled: false,
@@ -63,7 +63,7 @@ impl<B: Backend> StreamGuard<B> {
     }
 }
 
-impl<B: Backend> Drop for StreamGuard<B> {
+impl Drop for StreamGuard {
     fn drop(&mut self) {
         if !self.canceled {
             self.reader.inner.lock().status = StreamStatus::Aborted;
@@ -72,16 +72,16 @@ impl<B: Backend> Drop for StreamGuard<B> {
     }
 }
 
-impl<B: Backend> Deref for StreamGuard<B> {
-    type Target = CacheReader<B>;
+impl Deref for StreamGuard {
+    type Target = CacheReader;
 
     fn deref(&self) -> &Self::Target {
         Arc::deref(&self.reader)
     }
 }
 
-impl<B: Backend> CacheReader<B> {
-    pub fn new(backend: Arc<B>, path: String, stream: FetchStream) -> Arc<Self> {
+impl CacheReader {
+    pub fn new(backend: Arc<dyn Backend>, path: String, stream: FetchStream) -> Arc<Self> {
         let this = Arc::new(Self {
             backend,
             path,
@@ -194,7 +194,7 @@ impl<B: Backend> CacheReader<B> {
     async fn fetch_subsequent_response(&self, request_range: Range<usize>) -> Result<(), ()> {
         // Using usize::MAX as the max length, because we will check it when we download.
         let FetchResponse::Cache(stream) = fetch(
-            &*self.backend,
+            &self.backend,
             &Method::GET,
             &self.path,
             &request_range.try_into()?,

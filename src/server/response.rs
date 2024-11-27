@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::request::{Backend, Range};
+use crate::request::Range;
 use crate::response::CacheReader;
 use crate::Response;
 
@@ -11,10 +11,10 @@ use axum::body::Body;
 use headers::{ContentLength, ContentRange, ContentType};
 use http::{Method, StatusCode};
 
-pub fn reader_response<B: Backend>(
+pub fn reader_response(
     method: &Method,
     request_range: &Range,
-    reader: &Arc<CacheReader<B>>,
+    reader: &Arc<CacheReader>,
 ) -> Option<Response> {
     let complete_length = reader.complete_length();
     let response_range = request_range.as_range(complete_length);

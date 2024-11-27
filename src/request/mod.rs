@@ -1,6 +1,4 @@
-use std::future::Future;
-
-use crate::{Error, IntoResponse, Method, Response};
+use crate::{async_trait, Error, IntoResponse, Method, Response};
 pub use plain_backend::PlainBackend;
 pub use range::Range;
 use reqwest::RequestBuilder;
@@ -10,13 +8,9 @@ pub mod plain_backend;
 pub mod range;
 pub mod s3_backend;
 
+#[async_trait]
 pub trait Backend: Sync + Send + 'static {
-    fn fetch(
-        &self,
-        method: &Method,
-        path: &str,
-        range: &Range,
-    ) -> impl Future<Output = Result<Response, Error>> + Send;
+    async fn fetch(&self, method: &Method, path: &str, range: &Range) -> Result<Response, Error>;
 }
 
 fn set_path(mut url: Url, path: &str) -> Url {

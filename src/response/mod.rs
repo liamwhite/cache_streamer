@@ -1,4 +1,5 @@
 use core::ops::Range;
+use std::sync::Arc;
 
 use crate::request::{Backend, Range as RequestRange};
 use crate::{Method, Response};
@@ -20,8 +21,8 @@ pub enum FetchResponse {
     Err,
 }
 
-pub async fn fetch<B: Backend>(
-    backend: &B,
+pub async fn fetch(
+    backend: &Arc<dyn Backend>,
     method: &Method,
     path: &str,
     request_range: &RequestRange,

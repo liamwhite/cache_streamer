@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+pub use async_trait::async_trait;
 use axum::extract::{Path, Request, State};
 pub use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -7,7 +8,7 @@ use axum::Router;
 use container::TransientCache;
 use headers::{HeaderMapExt, Range as RangeHeader};
 pub use http::{Method, StatusCode};
-use request::{Backend, PlainBackend, Range};
+use request::{PlainBackend, Range};
 use server::Server;
 
 mod aws;
@@ -49,11 +50,7 @@ async fn client_error(req: Request) -> impl IntoResponse {
     error(&req, StatusCode::BAD_REQUEST)
 }
 
-async fn service<B: Backend>(
-    service: State<Arc<Server<B>>>,
-    Path(path): Path<String>,
-    req: Request,
-) -> Response {
+async fn service(service: State<Arc<Server>>, Path(path): Path<String>, req: Request) -> Response {
     log::debug!("{} /{}", req.method().as_str(), path);
 
     let range: Option<RangeHeader> = req.headers().typed_get::<RangeHeader>();

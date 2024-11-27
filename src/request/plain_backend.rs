@@ -1,5 +1,5 @@
 use super::{convert, merge_range_request, set_path, Backend, Range};
-use crate::{Error, Method, Response};
+use crate::{async_trait, Error, Method, Response};
 use reqwest::Client;
 use url::{ParseError, Url};
 
@@ -17,6 +17,7 @@ impl PlainBackend {
     }
 }
 
+#[async_trait]
 impl Backend for PlainBackend {
     async fn fetch(&self, method: &Method, path: &str, range: &Range) -> Result<Response, Error> {
         let url = set_path(self.base_url.clone(), path);
