@@ -1,17 +1,20 @@
-use std::ops::Range;
+use core::ops::Range;
+use std::sync::Arc;
+
+use crate::request::Backend;
+use crate::response::CacheReader;
 
 use super::header::{copy_header_if_exists, put_content_length_and_range, put_content_type};
-use super::ReaderArc;
 use axum::body::Body;
 use axum::response::Response as AxumResponse;
 use headers::{ContentLength, ContentRange, ContentType};
 use http::{Method, StatusCode};
 use reqwest::Response as ReqwestResponse;
 
-pub fn reader_response(
+pub fn reader_response<B: Backend>(
     method: &Method,
     response_range: &Option<Range<usize>>,
-    reader: ReaderArc,
+    reader: Arc<CacheReader<B>>,
 ) -> Option<AxumResponse> {
     let complete_length = reader.complete_length();
 

@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+pub use backend::Backend;
 pub use plain_backend::PlainBackend;
 use reqwest::RequestBuilder;
 use url::Url;

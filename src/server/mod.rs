@@ -6,29 +6,30 @@ use http::{Method, StatusCode};
 use parking_lot::Mutex;
 
 use crate::container::TransientCache;
-use crate::request::PlainBackend;
+use crate::request::Backend;
 use crate::response::{fetch, CacheReader, FetchResponse};
 use response::{error_response, passthrough_response, reader_response};
 
 mod header;
 mod response;
 
-type ReaderType = CacheReader<PlainBackend>;
-type ReaderArc = Arc<CacheReader<PlainBackend>>;
-
-pub struct Server {
+pub struct Server<B: Backend> {
     // NOTE: this must be Arc because the cache item lifetimes
     // need to be independent of this server
-    backend: Arc<PlainBackend>,
-    cache: Mutex<TransientCache<ReaderArc>>,
+    backend: Arc<B>,
+    cache: Mutex<TransientCache<Arc<CacheReader<B>>>>,
     max_length_for_cached_objects: usize,
 }
 
-impl Server {
-    pub fn new(transient_cache_size: usize, max_length_for_cached_objects: usize) -> Self {
+impl<B: Backend> Server<B> {
+    pub fn new(
+        backend: Arc<B>,
+        cache: TransientCache<Arc<CacheReader<B>>>,
+        max_length_for_cached_objects: usize,
+    ) -> Self {
         Self {
-            backend: Arc::new(PlainBackend::create("https://example.com").unwrap()),
-            cache: Mutex::new(TransientCache::new(transient_cache_size)),
+            backend,
+            cache: Mutex::new(cache),
             max_length_for_cached_objects,
         }
     }
@@ -68,7 +69,7 @@ impl Server {
                 let reader = {
                     let mut cache = self.cache.lock();
                     let length = stream.length;
-                    let reader = ReaderType::new(self.backend.clone(), path.to_owned(), stream);
+                    let reader = CacheReader::new(self.backend.clone(), path.to_owned(), stream);
                     cache.get_or_insert(path, length, reader)
                 };
 

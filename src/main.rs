@@ -4,7 +4,9 @@ use axum::extract::{Path, Request, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use container::TransientCache;
 use http::{Method, StatusCode};
+use request::{Backend, PlainBackend};
 use server::Server;
 
 mod aws;
@@ -20,10 +22,9 @@ const MAX_LENGTH_FOR_CACHED_OBJECTS: usize = 100_000_000;
 async fn main() {
     env_logger::init();
 
-    let state = Arc::new(Server::new(
-        TRANSIENT_CACHE_SIZE,
-        MAX_LENGTH_FOR_CACHED_OBJECTS,
-    ));
+    let backend = Arc::new(PlainBackend::create("https://example.com").unwrap());
+    let cache = TransientCache::new(TRANSIENT_CACHE_SIZE);
+    let state = Arc::new(Server::new(backend, cache, MAX_LENGTH_FOR_CACHED_OBJECTS));
     let app = Router::new()
         .route("/", get(root).head(root))
         .route("/*path", get(service).head(service))
@@ -45,7 +46,11 @@ async fn client_error(req: Request) -> impl IntoResponse {
     error(req, StatusCode::BAD_REQUEST)
 }
 
-async fn service(service: State<Arc<Server>>, Path(path): Path<String>, req: Request) -> Response {
+async fn service<B: Backend>(
+    service: State<Arc<Server<B>>>,
+    Path(path): Path<String>,
+    req: Request,
+) -> Response {
     log::debug!("{} /{}", req.method().as_str(), path);
     // TODO range
     service

@@ -1,7 +1,7 @@
 use core::ops::Range;
 use reqwest::{Error, Method, Response};
 
-pub trait Backend: Sync + Send {
+pub trait Backend: Sync + Send + 'static {
     fn fetch(
         &self,
         method: &Method,

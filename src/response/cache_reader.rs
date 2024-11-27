@@ -80,7 +80,7 @@ impl<B: Backend> Deref for StreamGuard<B> {
     }
 }
 
-impl<B: Backend + 'static> CacheReader<B> {
+impl<B: Backend> CacheReader<B> {
     pub fn new(backend: Arc<B>, path: String, stream: FetchStream) -> Arc<Self> {
         let this = Arc::new(Self {
             backend,
