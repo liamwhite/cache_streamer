@@ -1,6 +1,8 @@
+use core::ops::Range;
+
+use crate::request::Range as RequestRange;
 use headers::{ContentLength, ContentRange, HeaderMap, HeaderMapExt};
 use http::{Method, StatusCode};
-use std::ops::Range;
 
 pub fn should_cache(status: StatusCode) -> bool {
     matches!(status.as_u16(), 200..=204 | 206)
@@ -14,12 +16,12 @@ pub fn empty_range_if_head(method: &Method, range: Range<usize>) -> Range<usize>
 }
 
 pub fn try_get_content_range(
-    request_range: &Option<Range<usize>>,
+    request_range: &RequestRange,
     headers: &HeaderMap,
 ) -> Option<(Range<usize>, usize)> {
     match request_range {
-        Some(..) => try_get_content_range_range(headers),
-        None => try_get_content_range_full(headers),
+        RequestRange(None, None) => try_get_content_range_full(headers),
+        _ => try_get_content_range_range(headers),
     }
 }
 

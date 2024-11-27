@@ -197,7 +197,7 @@ impl<B: Backend> CacheReader<B> {
             &*self.backend,
             &Method::GET,
             &self.path,
-            &Some(request_range),
+            &request_range.try_into()?,
             usize::MAX,
         )
         .await

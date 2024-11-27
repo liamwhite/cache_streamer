@@ -1,7 +1,9 @@
 use std::ops::Range;
 
 use axum::http::response::Builder;
-use headers::{ContentLength, ContentRange, ContentType, Header, HeaderMap, HeaderMapExt};
+use headers::{
+    AcceptRanges, ContentLength, ContentRange, ContentType, Header, HeaderMap, HeaderMapExt,
+};
 
 pub fn put_content_length_and_range(
     mut builder: Builder,
@@ -35,6 +37,14 @@ pub fn put_content_type(
     if let Some(content_type) = content_type {
         headers.typed_insert(content_type);
     }
+
+    Some(builder)
+}
+
+pub fn put_accept_ranges(mut builder: Builder) -> Option<Builder> {
+    let headers = builder.headers_mut()?;
+
+    headers.typed_insert(AcceptRanges::bytes());
 
     Some(builder)
 }

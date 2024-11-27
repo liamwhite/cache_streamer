@@ -1,11 +1,10 @@
-use std::ops::Range;
 use std::sync::Arc;
 
 use crate::{Method, Response, StatusCode};
 use parking_lot::Mutex;
 
 use crate::container::TransientCache;
-use crate::request::Backend;
+use crate::request::{Backend, Range};
 use crate::response::{fetch, CacheReader, FetchResponse};
 use response::{error_response, passthrough_response, reader_response};
 
@@ -37,7 +36,7 @@ impl<B: Backend> Server<B> {
         &self,
         method: &Method,
         path: &str,
-        range: &Option<Range<usize>>,
+        request_range: &Range,
     ) -> Option<Response> {
         // Check to see if we can handle this request.
         if !matches!(*method, Method::GET | Method::HEAD) {
@@ -50,7 +49,7 @@ impl<B: Backend> Server<B> {
         // This is fine because it will stream any available data to each new client, and
         // once caught up, stream data as it is received from the upstream.
         if let Some(reader) = self.cache.lock().get(path) {
-            return reader_response(method, range, &reader);
+            return reader_response(method, request_range, &reader);
         }
 
         // The item was not in the cache, so make a request.
@@ -58,7 +57,7 @@ impl<B: Backend> Server<B> {
             &*self.backend,
             method,
             path,
-            range,
+            request_range,
             self.max_length_for_cached_objects,
         )
         .await
@@ -72,7 +71,7 @@ impl<B: Backend> Server<B> {
                     cache.get_or_insert(path, length, reader)
                 };
 
-                reader_response(method, range, &reader)
+                reader_response(method, request_range, &reader)
             }
             FetchResponse::Err => None,
         }

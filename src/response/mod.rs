@@ -1,6 +1,6 @@
-use std::ops::Range;
+use core::ops::Range;
 
-use crate::request::Backend;
+use crate::request::{Backend, Range as RequestRange};
 use crate::{Method, Response};
 pub use cache_reader::CacheReader;
 use util::{empty_range_if_head, should_cache, try_get_content_range};
@@ -24,7 +24,7 @@ pub async fn fetch<B: Backend>(
     backend: &B,
     method: &Method,
     path: &str,
-    request_range: &Option<Range<usize>>,
+    request_range: &RequestRange,
     max_cache_length: usize,
 ) -> FetchResponse {
     let response = match backend.fetch(method, path, request_range).await {

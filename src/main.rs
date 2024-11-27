@@ -5,8 +5,9 @@ pub use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use container::TransientCache;
+use headers::{HeaderMapExt, Range as RangeHeader};
 pub use http::{Method, StatusCode};
-use request::{Backend, PlainBackend};
+use request::{Backend, PlainBackend, Range};
 use server::Server;
 
 mod aws;
@@ -54,9 +55,15 @@ async fn service<B: Backend>(
     req: Request,
 ) -> Response {
     log::debug!("{} /{}", req.method().as_str(), path);
-    // TODO range
+
+    let range: Option<RangeHeader> = req.headers().typed_get::<RangeHeader>();
+    let request_range = match get_single_range(&range) {
+        Ok(range) => range,
+        Err(..) => return error(&req, StatusCode::RANGE_NOT_SATISFIABLE).into_response(),
+    };
+
     service
-        .stream_response(req.method(), &path, &None)
+        .stream_response(req.method(), &path, &request_range)
         .await
         .unwrap_or_else(|| error(&req, StatusCode::INTERNAL_SERVER_ERROR).into_response())
 }
@@ -70,4 +77,11 @@ fn error(req: &Request, code: StatusCode) -> impl IntoResponse {
             code.canonical_reason().unwrap_or("Unknown Error")
         },
     )
+}
+
+fn get_single_range(range: &Option<RangeHeader>) -> Result<Range, ()> {
+    match range {
+        None => Ok(Range::default()),
+        Some(range) => range.try_into(),
+    }
 }

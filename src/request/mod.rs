@@ -1,24 +1,34 @@
-use std::ops::Range;
+use std::future::Future;
 
-use crate::{IntoResponse, Response};
-pub use backend::Backend;
+use crate::{Error, IntoResponse, Method, Response};
 pub use plain_backend::PlainBackend;
+pub use range::Range;
 use reqwest::RequestBuilder;
 use url::Url;
 
-pub mod backend;
 pub mod plain_backend;
+pub mod range;
 pub mod s3_backend;
+
+pub trait Backend: Sync + Send + 'static {
+    fn fetch(
+        &self,
+        method: &Method,
+        path: &str,
+        range: &Range,
+    ) -> impl Future<Output = Result<Response, Error>> + Send;
+}
 
 fn set_path(mut url: Url, path: &str) -> Url {
     url.set_path(path);
     url
 }
 
-fn merge_range_request(req: RequestBuilder, range: &Option<Range<usize>>) -> RequestBuilder {
+fn merge_range_request(req: RequestBuilder, range: &Range) -> RequestBuilder {
+    let range: Result<String, _> = range.try_into();
     match range {
-        Some(Range { start, end }) => req.header("range", format!("bytes={start}-{end}")),
-        _ => req,
+        Ok(range) => req.header("range", range),
+        Err(..) => req,
     }
 }
 

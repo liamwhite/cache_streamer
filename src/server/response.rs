@@ -1,31 +1,34 @@
-use core::ops::Range;
 use std::sync::Arc;
 
-use crate::request::Backend;
+use crate::request::{Backend, Range};
 use crate::response::CacheReader;
 use crate::Response;
 
-use super::header::{copy_header_if_exists, put_content_length_and_range, put_content_type};
+use super::header::{
+    copy_header_if_exists, put_accept_ranges, put_content_length_and_range, put_content_type,
+};
 use axum::body::Body;
 use headers::{ContentLength, ContentRange, ContentType};
 use http::{Method, StatusCode};
 
 pub fn reader_response<B: Backend>(
     method: &Method,
-    response_range: &Option<Range<usize>>,
+    request_range: &Range,
     reader: &Arc<CacheReader<B>>,
 ) -> Option<Response> {
     let complete_length = reader.complete_length();
+    let response_range = request_range.as_range(complete_length);
 
-    if let Some(range) = response_range {
+    if let Some(range) = &response_range {
         if range.start > range.end || range.end > complete_length {
             return Some(error_response(StatusCode::RANGE_NOT_SATISFIABLE));
         }
     }
 
     let resp = Response::builder();
-    let resp = put_content_length_and_range(resp, complete_length, response_range)?;
+    let resp = put_content_length_and_range(resp, complete_length, &response_range)?;
     let resp = put_content_type(resp, reader.content_type())?;
+    let resp = put_accept_ranges(resp)?;
     let status = if response_range.is_some() {
         StatusCode::PARTIAL_CONTENT
     } else if complete_length > 0 {
@@ -38,7 +41,7 @@ pub fn reader_response<B: Backend>(
     if let Method::HEAD = *method {
         resp.body(Body::empty()).ok()
     } else {
-        let body_stream = reader.output_range(response_range);
+        let body_stream = reader.output_range(&response_range);
 
         resp.body(Body::from_stream(body_stream)).ok()
     }

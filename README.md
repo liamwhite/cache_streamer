@@ -2,7 +2,7 @@
 
 An incomplete Rust and tokio-based HTTP server designed as a caching reverse proxy for binary files (think images and videos). It is intended to handle range requests, as well as standard GET/HEAD requests.
 
-TODO: testing, actually handle input ranges, more headers, TTL-based expiration, if-modified-since, if-none-match, if-range
+TODO: testing, more headers, TTL-based expiration, if-modified-since, if-none-match, if-range
 
 ### Why not nginx
 
