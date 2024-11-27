@@ -43,7 +43,10 @@ impl<T: Clone> TransientCache<T> {
     // TODO LRU
     #[allow(dead_code)]
     pub fn remove(&mut self, key: &str) -> Option<T> {
-        self.cache.remove(key).map(|entry| entry.inner)
+        self.cache.remove(key).map(|entry| {
+            self.size_bytes -= entry.size_bytes;
+            entry.inner
+        })
     }
 
     fn shrink(&mut self) {
