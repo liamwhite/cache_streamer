@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, Request, State};
-use axum::response::{IntoResponse, Response};
+pub use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use container::TransientCache;
-use http::{Method, StatusCode};
+pub use http::{Method, StatusCode};
 use request::{Backend, PlainBackend};
 use server::Server;
 
@@ -17,6 +17,8 @@ mod server;
 
 const TRANSIENT_CACHE_SIZE: usize = 2_000_000_000;
 const MAX_LENGTH_FOR_CACHED_OBJECTS: usize = 100_000_000;
+
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[tokio::main]
 async fn main() {

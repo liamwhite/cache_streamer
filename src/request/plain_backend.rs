@@ -1,7 +1,8 @@
 use std::ops::Range;
 
-use super::{backend::Backend, merge_range_request, set_path};
-use reqwest::{Client, Error, Method, Response};
+use super::{convert, merge_range_request, set_path, Backend};
+use crate::{Error, Method, Response};
+use reqwest::Client;
 use url::{ParseError, Url};
 
 pub struct PlainBackend {
@@ -30,6 +31,6 @@ impl Backend for PlainBackend {
         let req = self.client.request(method.clone(), url);
         let req = merge_range_request(req, range);
 
-        req.send().await
+        Ok(convert(req.send().await?))
     }
 }

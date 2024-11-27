@@ -1,8 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use axum::response::Response;
-use http::{Method, StatusCode};
+use crate::{Method, Response, StatusCode};
 use parking_lot::Mutex;
 
 use crate::container::TransientCache;

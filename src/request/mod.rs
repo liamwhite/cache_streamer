@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use crate::{IntoResponse, Response};
 pub use backend::Backend;
 pub use plain_backend::PlainBackend;
 use reqwest::RequestBuilder;
@@ -19,4 +20,14 @@ fn merge_range_request(req: RequestBuilder, range: &Option<Range<usize>>) -> Req
         Some(Range { start, end }) => req.header("range", format!("bytes={start}-{end}")),
         _ => req,
     }
+}
+
+fn convert(mut res: reqwest::Response) -> Response {
+    let headers = std::mem::take(res.headers_mut());
+    (
+        res.status(),
+        headers,
+        Response::new(reqwest::Body::from(res)),
+    )
+        .into_response()
 }

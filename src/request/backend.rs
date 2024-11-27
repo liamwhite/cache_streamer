@@ -1,5 +1,7 @@
 use core::ops::Range;
-use reqwest::{Error, Method, Response};
+use std::future::Future;
+
+use crate::{Error, Method, Response};
 
 pub trait Backend: Sync + Send + 'static {
     fn fetch(
@@ -7,5 +9,5 @@ pub trait Backend: Sync + Send + 'static {
         method: &Method,
         path: &str,
         range: &Option<Range<usize>>,
-    ) -> impl std::future::Future<Output = Result<Response, Error>> + std::marker::Send;
+    ) -> impl Future<Output = Result<Response, Error>> + Send;
 }

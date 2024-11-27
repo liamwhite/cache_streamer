@@ -1,8 +1,9 @@
 use std::ops::Range;
 
-use super::{backend::Backend, merge_range_request, set_path};
+use super::{convert, merge_range_request, set_path, Backend};
 use crate::aws::{Configuration, Signer};
-use reqwest::{Client, Error, Method, Response};
+use crate::{Error, Method, Response};
+use reqwest::Client;
 use url::{ParseError, Url};
 
 pub struct S3Backend {
@@ -45,6 +46,6 @@ impl Backend for S3Backend {
             .header("host", &self.configuration.host);
         let req = merge_range_request(req, range);
 
-        req.send().await
+        Ok(convert(req.send().await?))
     }
 }

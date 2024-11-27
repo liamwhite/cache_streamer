@@ -1,9 +1,8 @@
 use std::ops::Range;
 
-use crate::request::backend::Backend;
+use crate::request::Backend;
+use crate::{Method, Response};
 pub use cache_reader::CacheReader;
-use http::Method;
-use reqwest::Response;
 use util::{empty_range_if_head, should_cache, try_get_content_range};
 
 pub mod cache_reader;

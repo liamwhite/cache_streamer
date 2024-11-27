@@ -3,13 +3,13 @@ use std::ops::{Deref, Range};
 use std::sync::Arc;
 
 use crate::container::SparseMap;
-use crate::request::backend::Backend;
+use crate::request::Backend;
+use crate::Response;
 use bytes::Bytes;
 use futures::{stream, Stream, StreamExt};
 use headers::{ContentType, HeaderMapExt};
 use http::Method;
 use parking_lot::Mutex;
-use reqwest::Response;
 use tokio::sync::{futures::Notified, Notify};
 
 use super::{fetch, FetchResponse, FetchStream};
@@ -171,7 +171,7 @@ impl<B: Backend> CacheReader<B> {
 
     async fn download_response(&self, promise: Range<usize>, resp: Response) -> Result<(), ()> {
         let mut offset = promise.start;
-        let mut stream = resp.bytes_stream();
+        let mut stream = resp.into_body().into_data_stream();
 
         while let Some(res) = stream.next().await {
             let bytes = res.map_err(|_| ())?;
