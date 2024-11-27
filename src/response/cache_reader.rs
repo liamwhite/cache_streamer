@@ -30,7 +30,7 @@ struct InnerStream {
 
 impl InnerStream {
     fn new(init: Range<usize>) -> Self {
-        let mut this: InnerStream = Default::default();
+        let mut this = Self::default();
         this.promised.put_new(init.start, init.len());
         this
     }

@@ -39,11 +39,11 @@ async fn main() {
 }
 
 async fn root(req: Request) -> impl IntoResponse {
-    error(req, StatusCode::NOT_FOUND)
+    error(&req, StatusCode::NOT_FOUND)
 }
 
 async fn client_error(req: Request) -> impl IntoResponse {
-    error(req, StatusCode::BAD_REQUEST)
+    error(&req, StatusCode::BAD_REQUEST)
 }
 
 async fn service<B: Backend>(
@@ -56,10 +56,10 @@ async fn service<B: Backend>(
     service
         .stream_response(req.method(), &path, &None)
         .await
-        .unwrap_or_else(|| error(req, StatusCode::INTERNAL_SERVER_ERROR).into_response())
+        .unwrap_or_else(|| error(&req, StatusCode::INTERNAL_SERVER_ERROR).into_response())
 }
 
-fn error(req: Request, code: StatusCode) -> impl IntoResponse {
+fn error(req: &Request, code: StatusCode) -> impl IntoResponse {
     (
         code,
         if req.method() == Method::HEAD {

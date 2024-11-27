@@ -13,7 +13,7 @@ struct Node<T> {
 impl<T: ContiguousCollection> Node<T> {
     fn new(start: usize, block: T) -> Box<Self> {
         Box::new(Self {
-            link: Default::default(),
+            link: RBTreeAtomicLink::default(),
             start,
             block,
         })
@@ -34,7 +34,7 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
     }
 }
 
-/// Returns (`ab` intersects `cd` && `ab` starts before `cd``).
+/// Returns (`ab` intersects `cd` && `ab` starts before `cd`).
 fn range_lt_intersecting<I: PartialOrd>(ab: &Range<I>, cd: &Range<I>) -> bool {
     ab.start < cd.start && cd.start < ab.end
 }

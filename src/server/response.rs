@@ -14,7 +14,7 @@ use reqwest::Response as ReqwestResponse;
 pub fn reader_response<B: Backend>(
     method: &Method,
     response_range: &Option<Range<usize>>,
-    reader: Arc<CacheReader<B>>,
+    reader: &Arc<CacheReader<B>>,
 ) -> Option<AxumResponse> {
     let complete_length = reader.complete_length();
 
@@ -36,13 +36,12 @@ pub fn reader_response<B: Backend>(
     };
     let resp = resp.status(status);
 
-    match *method {
-        Method::HEAD => resp.body(Body::empty()).ok(),
-        _ => {
-            let body_stream = reader.output_range(response_range);
+    if let Method::HEAD = *method {
+        resp.body(Body::empty()).ok()
+    } else {
+        let body_stream = reader.output_range(response_range);
 
-            resp.body(Body::from_stream(body_stream)).ok()
-        }
+        resp.body(Body::from_stream(body_stream)).ok()
     }
 }
 

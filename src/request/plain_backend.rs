@@ -28,7 +28,7 @@ impl Backend for PlainBackend {
         let url = set_path(self.base_url.clone(), path);
 
         let req = self.client.request(method.clone(), url);
-        let req = merge_range_request(req, range.clone());
+        let req = merge_range_request(req, range);
 
         req.send().await
     }

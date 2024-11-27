@@ -43,7 +43,7 @@ impl Backend for S3Backend {
             .header("x-amz-date", signature.x_amz_date)
             .header("x-amz-content-sha256", signature.x_amz_content_sha256)
             .header("host", &self.configuration.host);
-        let req = merge_range_request(req, range.clone());
+        let req = merge_range_request(req, range);
 
         req.send().await
     }

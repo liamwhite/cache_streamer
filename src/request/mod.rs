@@ -14,9 +14,9 @@ fn set_path(mut url: Url, path: &str) -> Url {
     url
 }
 
-fn merge_range_request(req: RequestBuilder, range: Option<Range<usize>>) -> RequestBuilder {
+fn merge_range_request(req: RequestBuilder, range: &Option<Range<usize>>) -> RequestBuilder {
     match range {
-        Some(Range { start, end }) => req.header("range", format!("bytes={}-{}", start, end)),
+        Some(Range { start, end }) => req.header("range", format!("bytes={start}-{end}")),
         _ => req,
     }
 }

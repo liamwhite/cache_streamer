@@ -51,7 +51,7 @@ impl<B: Backend> Server<B> {
         // This is fine because it will stream any available data to each new client, and
         // once caught up, stream data as it is received from the upstream.
         if let Some(reader) = self.cache.lock().get(path) {
-            return reader_response(method, range, reader);
+            return reader_response(method, range, &reader);
         }
 
         // The item was not in the cache, so make a request.
@@ -73,7 +73,7 @@ impl<B: Backend> Server<B> {
                     cache.get_or_insert(path, length, reader)
                 };
 
-                reader_response(method, range, reader)
+                reader_response(method, range, &reader)
             }
             FetchResponse::Err => None,
         }
