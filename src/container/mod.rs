@@ -1,3 +1,4 @@
+pub use contiguous_collection::ContiguousCollection;
 pub use intrusive_map::IntrusiveMap as SparseMap;
 pub use transient_cache::TransientCache;
 

@@ -1,6 +1,7 @@
+use std::cell::Cell;
 use std::error::Error;
 use std::ops::{Deref, Range};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use crate::container::SparseMap;
 use crate::request::Backend;
@@ -90,7 +91,7 @@ impl CacheReader {
             inner: Mutex::new(InnerStream::new(stream.range.clone())),
             signal: Notify::default(),
         });
-
+        
         let mut guard = StreamGuard::new(this.clone());
         tokio::spawn(async move {
             guard.resolve(guard.download_response(stream.range, stream.response).await);

@@ -13,6 +13,7 @@ use server::Server;
 
 mod aws;
 mod container;
+mod fetch;
 mod request;
 mod response;
 mod server;

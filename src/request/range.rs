@@ -70,6 +70,17 @@ impl Range {
 
         Some(lower..upper)
     }
+
+    pub fn is_empty(&self) -> bool {
+        match (self.0, self.1) {
+            (Some(x), Some(y)) => x > y,
+            _ => false,
+        }
+    }
+
+    pub fn add_start(&mut self, len: usize) {
+        *self.0.get_or_insert_default() += len;
+    }
 }
 
 fn convert_bound(bound: Bound<u64>, addend: u64) -> Option<usize> {

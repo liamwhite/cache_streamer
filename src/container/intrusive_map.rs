@@ -131,4 +131,42 @@ impl<T: ContiguousCollection> IntrusiveMap<T> {
 
         out.into()
     }
+
+    pub fn union_disjoint(&self, mut range: Range<usize>) -> Option<Range<usize>> {
+        let mut it = self.blocks.lower_bound(Bound::Included(&range.start));
+        let mut out = HoleTracker::default();
+
+        while range.len() > 0 {
+            let (data_advance, it_advance) = match it.get() {
+                Some(node) if range_gte_intersecting(&range, &node.range()) => {
+                    // We are already inside this block, so skip it.
+                    (
+                        range.len().min(node.block.len() - (range.start - node.start)),
+                        true,
+                    )
+                }
+                Some(node) if range_lt_intersecting(&range, &node.range()) => {
+                    // We intersect a block at a higher start, but can insert a block here.
+                    let data_advance = range.len().min(node.start - range.start);
+                    out.update(range.start, range.start + data_advance);
+
+                    (data_advance, false)
+                }
+                _ => {
+                    // No intersections. If the next block exists, it is higher.
+                    out.update(range.start, range.start + range.len());
+
+                    break;
+                }
+            };
+
+            range.start += data_advance;
+
+            if it_advance {
+                it.move_next();
+            }
+        }
+
+        out.into()
+    }
 }
