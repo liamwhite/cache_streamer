@@ -1,8 +1,10 @@
 use core::ops::Range;
+use std::cell::RefCell;
 
 use super::range;
 use super::{ContiguousCollection, HoleTracker};
 use intrusive_collections::intrusive_adapter;
+use intrusive_collections::rbtree::CursorMut;
 use intrusive_collections::{Bound, KeyAdapter, RBTree, RBTreeAtomicLink};
 
 struct Node<T> {
@@ -11,7 +13,10 @@ struct Node<T> {
     block: T,
 }
 
-impl<T: ContiguousCollection> Node<T> {
+impl<T> Node<T>
+where
+    T: ContiguousCollection,
+{
     fn new(start: usize, block: T) -> Box<Self> {
         Box::new(Self {
             link: RBTreeAtomicLink::default(),
@@ -36,15 +41,19 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
 }
 
 #[derive(Default)]
-pub struct SparseMap<T: ContiguousCollection> {
-    blocks: RBTree<NodeTreeAdapter<T>>,
+pub struct SparseMap<T> {
+    blocks: RefCell<RBTree<NodeTreeAdapter<T>>>,
 }
 
-impl<T: ContiguousCollection> SparseMap<T> {
+impl<T> SparseMap<T>
+where
+    T: ContiguousCollection,
+{
     pub fn get(&self, offset: usize, max_size: usize) -> Option<T::Slice> {
         let requested_range = offset..(offset + max_size);
+        let blocks = self.blocks.borrow();
 
-        match self.blocks.lower_bound(Bound::Included(&offset)).get() {
+        match blocks.lower_bound(Bound::Included(&offset)).get() {
             Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                 // Return a view of this block.
                 Some(
@@ -59,13 +68,33 @@ impl<T: ContiguousCollection> SparseMap<T> {
         }
     }
 
-    pub fn put_new<C>(&mut self, mut offset: usize, mut data: C) -> Option<Range<usize>>
+    pub fn put_new<C>(&mut self, offset: usize, data: C)
     where
         C: ContiguousCollection<Slice = C>,
         T: From<C>,
     {
-        let mut it = self.blocks.lower_bound_mut(Bound::Included(&offset));
+        self.walk_discontinuous_regions(offset, data, |it, offset, data| {
+            it.insert_before(Node::new(offset, data.into()));
+        });
+    }
+
+    pub fn union_discontinuous_range(&self, range: Range<usize>) -> Option<Range<usize>> {
         let mut out = HoleTracker::default();
+
+        self.walk_discontinuous_regions(range.start, range.len(), |_, offset, data| {
+            out.update(offset, offset + data.len());
+        });
+
+        out.into()
+    }
+
+    fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
+    where
+        C: ContiguousCollection<Slice = C>,
+        F: for<'a> FnMut(&mut CursorMut<'a, NodeTreeAdapter<T>>, usize, C),
+    {
+        let mut blocks = self.blocks.borrow_mut();
+        let mut it = blocks.lower_bound_mut(Bound::Included(&offset));
 
         while !data.is_empty() {
             let requested_range = offset..(offset + data.len());
@@ -78,17 +107,15 @@ impl<T: ContiguousCollection> SparseMap<T> {
                     )
                 }
                 Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
-                    // We intersect a block at a higher start, but can insert a block here.
+                    // We intersect a block at a higher start, but there is a hole here.
                     let data_advance = data.len().min(node.start - offset);
-                    out.update(offset, offset + data_advance);
-                    it.insert_before(Node::new(offset, data.slice(0..data_advance).into()));
+                    on_hole(&mut it, offset, data.slice(0..data_advance));
 
                     (data_advance, false)
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
-                    out.update(offset, offset + data.len());
-                    it.insert_before(Node::new(offset, data.into()));
+                    on_hole(&mut it, offset, data);
 
                     break;
                 }
@@ -101,7 +128,5 @@ impl<T: ContiguousCollection> SparseMap<T> {
                 it.move_next();
             }
         }
-
-        out.into()
     }
 }
