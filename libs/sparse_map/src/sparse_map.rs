@@ -1,7 +1,7 @@
 use core::ops::Range;
 
-use super::{ContiguousCollection, HoleTracker};
 use super::range;
+use super::{ContiguousCollection, HoleTracker};
 use intrusive_collections::intrusive_adapter;
 use intrusive_collections::{Bound, KeyAdapter, RBTree, RBTreeAtomicLink};
 
@@ -34,7 +34,6 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
         node.start
     }
 }
-
 
 #[derive(Default)]
 pub struct SparseMap<T: ContiguousCollection> {
