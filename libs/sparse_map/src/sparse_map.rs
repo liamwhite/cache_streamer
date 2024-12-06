@@ -40,6 +40,15 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
     }
 }
 
+/// A sparse mapping of [`usize`] _offsets_ to [`ContiguousCollection`]s of type `T`.
+///
+/// When T is [`Bytes`], `SparseMap` provides the semantics of a sparse file, which
+/// contains various mapped intervals of bytes, and holes otherwise.
+///
+/// When `T` is an integer type like [`usize`], `SparseMap` provides the semantics of
+/// an interval set.
+///
+/// For simplicity, no merging of adjacent intervals is implemented.
 #[derive(Default)]
 pub struct SparseMap<T> {
     blocks: RefCell<RBTree<NodeTreeAdapter<T>>>,
@@ -49,6 +58,14 @@ impl<T> SparseMap<T>
 where
     T: ContiguousCollection,
 {
+    /// Gets the largest slice (smaller than `max_size`) available at `offset`, or
+    /// [`None`] if there is nothing mapped at `offset`.
+    /// 
+    /// If a data block is mapped below `offset`, but its size extends into `offset`
+    /// then a slice of the block adjusted to start at `offset` will be returned.
+    ///
+    /// If a data block is mapped with the same start as `offset`, then that block
+    /// will be returned.
     pub fn get(&self, offset: usize, max_size: usize) -> Option<T::Slice> {
         let requested_range = offset..(offset + max_size);
         let blocks = self.blocks.borrow();
@@ -68,6 +85,10 @@ where
         }
     }
 
+    /// Maps a [`ContiguousCollection`] at the given offset.
+    /// 
+    /// This progressively slices the collection to fit into discontinuous regions,
+    /// and discards sections which correspond to offsets which have already been mapped.
     pub fn put_new<C>(&mut self, offset: usize, data: C)
     where
         C: ContiguousCollection<Slice = C>,
@@ -78,6 +99,10 @@ where
         });
     }
 
+    /// Finds the largest discontinuous range which intersects the input range.
+    ///
+    /// If there are any discontinuities within the input range, returns a range consisting of
+    /// the first unmapped offset up to the last unmapped offset. Otherwise, returns [`None`].
     pub fn union_discontinuous_range(&self, range: Range<usize>) -> Option<Range<usize>> {
         let mut out = HoleTracker::default();
 
@@ -91,7 +116,7 @@ where
     fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
     where
         C: ContiguousCollection<Slice = C>,
-        F: for<'a> FnMut(&mut CursorMut<'a, NodeTreeAdapter<T>>, usize, C),
+        F: FnMut(&mut CursorMut<'_, NodeTreeAdapter<T>>, usize, C),
     {
         let mut blocks = self.blocks.borrow_mut();
         let mut it = blocks.lower_bound_mut(Bound::Included(&offset));
@@ -128,5 +153,18 @@ where
                 it.move_next();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SparseMap;
+
+    #[test]
+    fn test_put_get() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(0, 1024);
+
+        assert_eq!(map.get(64, 1024), Some(1024 - 64));
     }
 }
