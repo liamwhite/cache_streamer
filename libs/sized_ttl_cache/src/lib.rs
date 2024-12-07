@@ -29,8 +29,8 @@ where
 /// A LRU cache which has a maximum capacity in bytes (instead of entries), and supports
 /// TTL-based expiry on a per-entry basis.
 ///
-/// The `T` generic parameter is the type of the time point. This can be any [`Ord`] type,
-/// but should generally be [`chrono::DateTime`].
+/// The `T` generic parameter is the type of the time point. This can be any [`Ord`] type.
+/// Normal uses should default to [`chrono::DateTime`].
 pub struct SizedTTLCache<K, T, V> {
     cache: LRUCache<K, Entry<T, V>>,
     capacity_bytes: usize,
