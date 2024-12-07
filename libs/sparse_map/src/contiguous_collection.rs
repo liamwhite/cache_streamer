@@ -1,6 +1,9 @@
 use bytes::Bytes;
 use core::ops::Range;
 
+/// A collection which has a length representable as a [`usize`], and can be sliced
+/// with a half-open range. This is not limited to arrays, and can also represent
+/// integer ranges.
 pub trait ContiguousCollection {
     /// The type of this data when sliced using a half-open range.
     type Slice;
