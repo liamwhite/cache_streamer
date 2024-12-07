@@ -110,15 +110,16 @@ mod tests {
     #[test]
     fn test_ttl_expire() {
         let mut cache = SizedTTLCache::<String, usize, usize>::with_capacity(0);
-        cache.get_or_insert(&0, "0", Entry::from_parts(1, Some(1), 1));
+        cache.get_or_insert(&0, "0", Entry::from_parts(1, Some(1), 0));
 
+        assert_eq!(cache.get(&0, "0"), Some(0));
         assert_eq!(cache.get(&2, "0"), None);
     }
 
     #[test]
     fn test_capacity_bound() {
         let mut cache = SizedTTLCache::<String, usize, usize>::with_capacity(0);
-        cache.get_or_insert(&0, "0", Entry::from_parts(1, None, 1));
+        cache.get_or_insert(&0, "0", Entry::from_parts(1, None, 0));
         cache.get_or_insert(&0, "1", Entry::from_parts(1, None, 1));
 
         assert_eq!(cache.get(&0, "0"), None);
