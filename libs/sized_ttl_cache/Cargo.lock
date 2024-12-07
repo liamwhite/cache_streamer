@@ -30,20 +30,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "bytes"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ac0150caa2ae65ca5bd83f25c7de183dea78d4d366469f148435e2acfbad0da"
-
-[[package]]
-name = "cache_streamer"
-version = "0.1.0"
-dependencies = [
- "sized_ttl_cache",
- "sparse_map",
-]
-
-[[package]]
 name = "cc"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -195,14 +181,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "intrusive-lru-cache",
-]
-
-[[package]]
-name = "sparse_map"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "intrusive-collections",
 ]
 
 [[package]]

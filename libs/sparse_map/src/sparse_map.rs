@@ -42,7 +42,7 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
 
 /// A sparse mapping of [`usize`]-bounded intervals to [`ContiguousCollection`]s of type `T`.
 ///
-/// When T is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which
+/// When `T` is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which
 /// contains various mapped intervals of bytes, and holes otherwise.
 ///
 /// When `T` is an integer type like [`usize`], [`SparseMap`] provides the semantics of
