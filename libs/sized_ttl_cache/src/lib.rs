@@ -37,13 +37,10 @@ pub struct SizedTTLCache<K, T, V> {
     size_bytes: usize,
 }
 
-// TODO: relax Clone on V
-
 impl<K, T, V> SizedTTLCache<K, T, V>
 where
     K: Ord + 'static,
     T: Ord,
-    V: Clone,
 {
     /// Create a new [`SizedTTLCache`] with the given maximum capacity in bytes.
     pub fn with_capacity(capacity_bytes: usize) -> Self {
@@ -56,41 +53,38 @@ where
 
     /// Gets the non-expired value corresponding to a key, or [`None`] if no value
     /// is available for the key.
-    pub fn get<Q>(&mut self, time: &T, key: &Q) -> Option<V>
+    pub fn get<'a, Q>(&'a mut self, time: &T, key: &Q) -> Option<&'a mut V>
     where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        let mut entry = self.cache.smart_get(key)?;
+        let entry = self.cache.smart_get(key)?;
 
         if entry.is_expired(time) {
             let _ = entry.remove();
             None
         } else {
-            Some(entry.get_value().inner.clone())
+            Some(&mut entry.into_mut().1.inner)
         }
     }
 
     /// Gets the non-expired value corresponding to a key, or inserts the given
     /// data as the new value.
-    pub fn get_or_insert<Q>(&mut self, time: &T, key: &Q, value: Entry<T, V>) -> V
+    pub fn get_or_insert<'a, Q>(&'a mut self, time: &T, key: &Q, value: Entry<T, V>) -> &'a mut V
     where
         K: Borrow<Q>,
         Q: ToOwned<Owned = K> + Ord + ?Sized,
     {
-        if let Some(entry) = self.get(time, key) {
-            return entry;
-        }
-
         self.shrink();
+        self.get(time, key);
 
-        self.cache
+        &mut self
+            .cache
             .get_or_insert2(key, || {
                 self.size_bytes += value.size_bytes;
                 value
             })
             .inner
-            .clone()
     }
 
     fn shrink(&mut self) {
@@ -112,7 +106,7 @@ mod tests {
         let mut cache = SizedTTLCache::<String, usize, usize>::with_capacity(0);
         cache.get_or_insert(&0, "0", Entry::from_parts(1, Some(1), 0));
 
-        assert_eq!(cache.get(&0, "0"), Some(0));
+        assert_eq!(cache.get(&0, "0"), Some(&mut 0));
         assert_eq!(cache.get(&2, "0"), None);
     }
 
@@ -123,6 +117,6 @@ mod tests {
         cache.get_or_insert(&0, "1", Entry::from_parts(1, None, 1));
 
         assert_eq!(cache.get(&0, "0"), None);
-        assert_eq!(cache.get(&0, "1"), Some(1));
+        assert_eq!(cache.get(&0, "1"), Some(&mut 1));
     }
 }
