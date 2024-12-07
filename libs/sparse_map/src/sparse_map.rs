@@ -113,6 +113,21 @@ where
         out.into()
     }
 
+    /// Returns the number of indices which are covered by any mapped block.
+    pub fn mapped_len(&self) -> usize {
+        self.blocks.borrow().iter().map(|n| n.block.len()).sum()
+    }
+
+    /// Returns the range of indices which are covered by the sparse map.
+    pub fn len(&self) -> usize {
+        let blocks = self.blocks.borrow();
+
+        let start = blocks.front().get().map_or(0, |n| n.start);
+        let end = blocks.back().get().map_or(0, |n| n.start + n.block.len());
+
+        end - start
+    }
+
     fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
     where
         C: ContiguousCollection<Slice = C>,
@@ -212,5 +227,22 @@ mod tests {
         map.put_new(2048, 1024);
         map.put_new(4096, 1024);
         assert_eq!(map.union_discontinuous_range(0..8192), Some(1024..8192));
+    }
+
+    #[test]
+    fn test_lengths() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(0, 1024);
+
+        assert_eq!(map.len(), 1024);
+        assert_eq!(map.mapped_len(), 1024);
+
+        map.put_new(1024, 1024);
+        assert_eq!(map.len(), 2048);
+        assert_eq!(map.mapped_len(), 2048);
+
+        map.put_new(4096, 1024);
+        assert_eq!(map.len(), 4096 + 1024);
+        assert_eq!(map.mapped_len(), 2048 + 1024);
     }
 }
