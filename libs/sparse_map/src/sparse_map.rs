@@ -42,10 +42,10 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
 
 /// A sparse mapping of [`usize`] _offsets_ to [`ContiguousCollection`]s of type `T`.
 ///
-/// When T is [`Bytes`], `SparseMap` provides the semantics of a sparse file, which
+/// When T is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which
 /// contains various mapped intervals of bytes, and holes otherwise.
 ///
-/// When `T` is an integer type like [`usize`], `SparseMap` provides the semantics of
+/// When `T` is an integer type like [`usize`], [`SparseMap`] provides the semantics of
 /// an interval set.
 ///
 /// For simplicity, no merging of adjacent intervals is implemented.
@@ -70,7 +70,7 @@ where
         let requested_range = offset..(offset + max_size);
         let blocks = self.blocks.borrow();
 
-        match blocks.lower_bound(Bound::Included(&offset)).get() {
+        match blocks.upper_bound(Bound::Included(&offset)).get() {
             Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                 // Return a view of this block.
                 Some(
@@ -158,13 +158,42 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::SparseMap;
+    use super::*;
 
     #[test]
-    fn test_put_get() {
+    fn test_put_get_boundary_conditions() {
         let mut map = SparseMap::<usize>::default();
         map.put_new(0, 1024);
+        map.put_new(1024, 1024);
 
+        assert_eq!(map.get(0, 1024), Some(1024));
         assert_eq!(map.get(64, 1024), Some(1024 - 64));
+        assert_eq!(map.get(1024, 1024), Some(1024));
+        assert_eq!(map.get(1024 + 64, 1024), Some(1024 - 64));
+        assert_eq!(map.get(2048, 1024), None);
+        assert_eq!(map.get(2048 + 64, 1024), None);
+    }
+
+    #[test]
+    fn test_repeatable_ranges() {
+        let mut map = SparseMap::<usize>::default();
+
+        map.put_new(0, 1024);
+        assert_eq!(map.get(0, 1024), Some(1024));
+
+        map.put_new(1024, 1024);
+        assert_eq!(map.get(0, 1024), Some(1024));
+    }
+
+    #[test]
+    fn test_overlapping_ranges() {
+        let mut map = SparseMap::<usize>::default();
+
+        map.put_new(0, 1024);
+        assert_eq!(map.get(0, 1024), Some(1024));
+
+        map.put_new(1024 - 64, 1024);
+        assert_eq!(map.get(0, 1024), Some(1024));
+        assert_eq!(map.get(1024, 1024), Some(1024 - 64));
     }
 }
