@@ -196,4 +196,21 @@ mod tests {
         assert_eq!(map.get(0, 1024), Some(1024));
         assert_eq!(map.get(1024, 1024), Some(1024 - 64));
     }
+
+    #[test]
+    fn test_discontinuous() {
+        let mut map = SparseMap::<usize>::default();
+        assert_eq!(map.union_discontinuous_range(0..1024), Some(0..1024));
+
+        map.put_new(0, 1024);
+        assert_eq!(map.union_discontinuous_range(0..1024), None);
+        assert_eq!(
+            map.union_discontinuous_range(0..(1024 + 64)),
+            Some(1024..(1024 + 64))
+        );
+
+        map.put_new(2048, 1024);
+        map.put_new(4096, 1024);
+        assert_eq!(map.union_discontinuous_range(0..8192), Some(1024..8192));
+    }
 }
