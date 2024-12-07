@@ -1,18 +1,19 @@
 use core::borrow::Borrow;
-
-use chrono::{DateTime, Utc};
 use intrusive_lru_cache::LRUCache;
 
 #[derive(Clone)]
-pub struct Entry<V> {
+pub struct Entry<T, V> {
     size_bytes: usize,
-    expiration_time: Option<DateTime<Utc>>,
+    expiration_time: Option<T>,
     inner: V,
 }
 
-impl<V> Entry<V> {
-    /// Creates a new [`Entry`] with the given parameters.
-    pub fn from_parts(size_bytes: usize, expiration_time: Option<DateTime<Utc>>, inner: V) -> Self {
+impl<T, V> Entry<T, V>
+where
+    T: Ord,
+{
+    /// Creates a new [`Entry`] with the given size and optional expiration timepoint.
+    pub fn from_parts(size_bytes: usize, expiration_time: Option<T>, inner: V) -> Self {
         Self {
             size_bytes,
             expiration_time,
@@ -20,32 +21,28 @@ impl<V> Entry<V> {
         }
     }
 
-    /// Consumes the given [`Entry`] and returns the inner value.
-    pub fn into_inner(self) -> V {
-        self.inner
-    }
-
-    fn is_valid(&self) -> bool {
-        match self.expiration_time {
-            Some(expiration_time) if expiration_time < Utc::now() => false,
-            _ => true,
-        }
+    fn is_expired(&self, now: &T) -> bool {
+        matches!(&self.expiration_time, Some(expiration_time) if now > expiration_time)
     }
 }
 
 /// A LRU cache which has a maximum capacity in bytes (instead of entries), and supports
 /// TTL-based expiry on a per-entry basis.
-pub struct SizedTTLCache<K, V> {
-    cache: LRUCache<K, Entry<V>>,
+///
+/// The `T` generic parameter is the type of the time point. This can be any [`Ord`] type,
+/// but should generally be [`chrono::DateTime`].
+pub struct SizedTTLCache<K, T, V> {
+    cache: LRUCache<K, Entry<T, V>>,
     capacity_bytes: usize,
     size_bytes: usize,
 }
 
 // TODO: relax Clone on V
 
-impl<K, V> SizedTTLCache<K, V>
+impl<K, T, V> SizedTTLCache<K, T, V>
 where
     K: Ord + 'static,
+    T: Ord,
     V: Clone,
 {
     /// Create a new [`SizedTTLCache`] with the given maximum capacity in bytes.
@@ -59,29 +56,29 @@ where
 
     /// Gets the non-expired value corresponding to a key, or [`None`] if no value
     /// is available for the key.
-    pub fn get<Q>(&mut self, key: &Q) -> Option<Entry<V>>
+    pub fn get<Q>(&mut self, time: &T, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
         let mut entry = self.cache.smart_get(key)?;
 
-        if !entry.is_valid() {
+        if entry.is_expired(time) {
             let _ = entry.remove();
             None
         } else {
-            Some(entry.get_value().clone())
+            Some(entry.get_value().inner.clone())
         }
     }
 
     /// Gets the non-expired value corresponding to a key, or inserts the given
     /// data as the new value.
-    fn get_or_insert<Q>(&mut self, key: &Q, value: Entry<V>) -> Entry<V>
+    pub fn get_or_insert<Q>(&mut self, time: &T, key: &Q, value: Entry<T, V>) -> V
     where
         K: Borrow<Q>,
         Q: ToOwned<Owned = K> + Ord + ?Sized,
     {
-        if let Some(entry) = self.get(key) {
+        if let Some(entry) = self.get(time, key) {
             return entry;
         }
 
@@ -92,6 +89,7 @@ where
                 self.size_bytes += value.size_bytes;
                 value
             })
+            .inner
             .clone()
     }
 
@@ -102,5 +100,28 @@ where
                 None => return,
             };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ttl_expire() {
+        let mut cache = SizedTTLCache::<String, usize, usize>::with_capacity(0);
+        cache.get_or_insert(&0, "0", Entry::from_parts(1, Some(1), 1));
+
+        assert_eq!(cache.get(&2, "0"), None);
+    }
+
+    #[test]
+    fn test_capacity_bound() {
+        let mut cache = SizedTTLCache::<String, usize, usize>::with_capacity(0);
+        cache.get_or_insert(&0, "0", Entry::from_parts(1, None, 1));
+        cache.get_or_insert(&0, "1", Entry::from_parts(1, None, 1));
+
+        assert_eq!(cache.get(&0, "0"), None);
+        assert_eq!(cache.get(&0, "1"), Some(1));
     }
 }
