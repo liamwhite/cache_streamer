@@ -1,0 +1,10 @@
+[package]
+name = "cache_streamer_lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes = "1.8"
+futures = "0.3"
+sized_ttl_cache = { path = "../sized_ttl_cache" }
+sparse_map = { path = "../sparse_map" }

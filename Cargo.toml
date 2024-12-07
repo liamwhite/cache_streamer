@@ -4,5 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sized_ttl_cache = { path = "libs/sized_ttl_cache" }
-sparse_map = { path = "libs/sparse_map" }
+cache_streamer_lib = { path = "libs/cache_streamer_lib" }
