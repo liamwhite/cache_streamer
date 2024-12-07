@@ -60,7 +60,7 @@ where
 {
     /// Gets the largest slice (smaller than `max_size`) available at `offset`, or
     /// [`None`] if there is nothing mapped at `offset`.
-    /// 
+    ///
     /// If a data block is mapped below `offset`, but its size extends into `offset`
     /// then a slice of the block adjusted to start at `offset` will be returned.
     ///
@@ -86,7 +86,7 @@ where
     }
 
     /// Maps a [`ContiguousCollection`] at the given offset.
-    /// 
+    ///
     /// This progressively slices the collection to fit into discontinuous regions,
     /// and discards sections which correspond to offsets which have already been mapped.
     pub fn put_new<C>(&mut self, offset: usize, data: C)
