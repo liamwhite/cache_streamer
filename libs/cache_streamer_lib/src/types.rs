@@ -1,4 +1,3 @@
-use core::ops::Range;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -20,7 +19,7 @@ pub enum RequestRange {
 
     /// This specific range of bytes from the file.
     /// Start inclusive, end exclusive.
-    Bounded(Range<usize>),
+    Bounded(usize, usize),
 }
 
 /// A file range returned by the server.
