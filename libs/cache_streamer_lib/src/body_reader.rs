@@ -110,10 +110,9 @@ async fn make_tee_reader<R>(
 where
     R: Response,
 {
-    let result = match requester.fetch(range).await {
-        Ok(ResponseType::Cache(r, ..)) => r,
-        Ok(ResponseType::Passthrough(..)) => return Err("invalid upstream status".into()),
-        Err(e) => return Err(e),
+    let result = match requester.fetch(range).await? {
+        ResponseType::Cache(r, ..) => r,
+        ResponseType::Passthrough(..) => return Err("invalid upstream status".into()),
     };
 
     Ok(TeeBodyReader::new(blocks, result.into_body()))
