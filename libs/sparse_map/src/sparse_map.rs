@@ -40,6 +40,8 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
     }
 }
 
+// TODO: load factor
+
 /// A sparse mapping of [`usize`]-bounded intervals to [`ContiguousCollection`]s of type `T`.
 ///
 /// When `T` is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which

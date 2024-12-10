@@ -42,18 +42,22 @@ where
 
         // The item was not in the cache, so make a request.
         let requester = self.backend.create_for_key(key);
-        let initial_response = requester.fetch(range).await?;
+
+        // Check to see if we should cache this at all.
+        let initial_response = match requester.fetch(range).await? {
+            ResponseType::Cache(r) => r,
+            ResponseType::Passthrough(r) => return Ok(r),
+        };
 
         let response_range = initial_response.get_range();
         let expiration_time = initial_response.expiration_time();
-        let is_cacheable = initial_response.is_cacheable();
 
         // Check for cacheability.
         // Even if the request is potentially cacheable, we only cache requests that return
         // some form of valid response range. Without this, we can't support suffix queries
         // correctly.
-        match (is_cacheable, response_range, expiration_time) {
-            (true, Some(range), expiration_time) => {
+        match (response_range, expiration_time) {
+            (Some(range), expiration_time) => {
                 let streamer = {
                     let streamer = Cache::new(requester, range.bytes_len);
                     let entry = Entry::from_parts(range.bytes_len, expiration_time, streamer);

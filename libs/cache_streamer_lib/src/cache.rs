@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::types::*;
-use crate::streamer::Streamer;
+use futures::stream;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use sparse_map::SparseMap;
@@ -38,5 +38,20 @@ where
             RequestRange::Suffix(count) => (size_bytes - count.min(size_bytes), size_bytes),
             RequestRange::Bounded(start, end) => (start.min(size_bytes), end.min(size_bytes)),
         };
+
+        let body_stream = stream::unfold(
+            (offset, end, blocks, requester),
+            move |(offset, end, blocks, requester)| async move {
+                // Check for stream end condition.
+                if offset >= end {
+                    return None;
+                }
+
+                // Check for block availability.
+                if let Some(bytes) = blocks.lock().get(offset, end - offset) {
+
+                    return Some((Ok(bytes), ));
+                }
+            });
     }
 }

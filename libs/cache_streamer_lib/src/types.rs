@@ -36,10 +36,10 @@ pub struct ResponseRange {
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// The type of body streams to be returned by this cache.
-pub type BodyStream = Box<dyn Stream<Item = Result<Bytes>>>;
+pub type BodyStream = Pin<Box<dyn Stream<Item = Result<Bytes>> + Send + Sync>>;
 
 /// The type of responses to be returned by this cache, and by upstream servers.
-pub trait Response {
+pub trait Response: 'static {
     /// The type of cache expiration times.
     type Timepoint: Ord;
 
@@ -55,9 +55,6 @@ pub trait Response {
     /// Get the range satisfied by this response.
     fn get_range(&self) -> Option<ResponseRange>;
 
-    /// Get whether this response can be cached.
-    fn is_cacheable(&self) -> bool;
-
     /// Get the expiration time of this response. If [`None`], it never expires.
     fn expiration_time(&self) -> Option<Self::Timepoint>;
 
@@ -68,10 +65,23 @@ pub trait Response {
     fn into_body(self) -> BodyStream;
 }
 
+/// Response variant for [`Requester`], indicating the cacheability of the response.
+pub enum ResponseType<R: Response> {
+    /// Cache this response.
+    ///
+    /// This should only be returned if all of the following are true:
+    ///    * The request was successful
+    ///    * The response returned the same range as the request
+    Cache(R),
+
+    /// Passthrough this response.
+    Passthrough(R)
+}
+
 /// The type of a request which can be repeated with different ranges.
 pub trait Requester<R: Response>: Send + Sync + 'static {
     /// Fetch a new copy of the response with the given range.
-    fn fetch(&self, range: &RequestRange) -> Pin<Box<dyn Future<Output = Result<R>> + Send + '_>>;
+    fn fetch(&self, range: &RequestRange) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + '_>>;
 }
 
 /// The type of a factory for requesters. Given a key, it will create
@@ -80,3 +90,6 @@ pub trait RequestBackend<K, R: Response>: Send + Sync + 'static {
     /// Create a new [`Requester`] that fetches requests for this key.
     fn create_for_key(&self, key: K) -> Arc<dyn Requester<R>>;
 }
+
+/// The type of a file sparse map.
+pub(crate) type Blocks = parking_lot::Mutex<sparse_map::SparseMap<Bytes>>;

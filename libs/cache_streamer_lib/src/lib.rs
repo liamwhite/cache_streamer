@@ -1,6 +1,6 @@
 pub use types::*;
 
-pub mod service;
+mod body_reader;
 mod cache;
-mod streamer;
+pub mod service;
 pub mod types;
