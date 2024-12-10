@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// A simple body reader which tracks a blocks object and exhausts once there are no
 /// remaining blocks at a given offset.
-struct BlockBodyReader(Arc<Blocks>);
+pub struct BlockBodyReader(Arc<Blocks>);
 
 impl BlockBodyReader {
     fn new(blocks: Arc<Blocks>) -> Self {
@@ -69,7 +69,7 @@ impl StreamBodyReader {
 
 /// A body reader which pipes the results of a body stream into a blocks
 /// reference while also returning the results.
-struct TeeBodyReader {
+pub struct TeeBodyReader {
     blocks: Arc<Blocks>,
     stream_reader: StreamBodyReader,
 }
@@ -111,7 +111,7 @@ where
     R: Response,
 {
     let result = match requester.fetch(range).await {
-        Ok(ResponseType::Cache(r)) => r,
+        Ok(ResponseType::Cache(r, ..)) => r,
         Ok(ResponseType::Passthrough(..)) => return Err("invalid upstream status".into()),
         Err(e) => return Err(e),
     };
@@ -184,8 +184,8 @@ where
 
     /// Consumes and converts the reader into a stream of `Result<Bytes>`.
     ///
-    /// The caller is responsible for ensuring `start < end` before calling this function.
-    /// Failure to do so may result in unpredictable behavior.
+    /// The caller should check that `start <= end` before calling this function.
+    /// Failure to do so may result in unexpected stream output.
     pub fn into_stream(self, start: usize, end: usize) -> impl Stream<Item = Result<Bytes>> {
         stream::unfold((start, end, self), |(mut offset, end, mut this)| async move {
             if offset >= end {

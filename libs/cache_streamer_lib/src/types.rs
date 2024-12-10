@@ -24,13 +24,13 @@ pub enum RequestRange {
 }
 
 /// A file range returned by the server.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ResponseRange {
     /// The total number of bytes in the file.
     pub bytes_len: usize,
 
-    /// The number of bytes being returned by this request.
-    pub bytes_range: usize,
+    /// The bytes being returned by this request.
+    pub bytes_range: RequestRange,
 }
 
 /// The type of results to be returned by this cache.
@@ -48,19 +48,10 @@ pub trait Response: 'static {
     ///
     /// For HTTP, this could be used to store headers.
     /// If not needed, it can be set to `()`.
-    type Data;
+    type Data: Clone;
 
     /// Construct a new response from its constituent parts.
-    fn from_parts(data: Self::Data, body: BodyStream) -> Self;
-
-    /// Get the range satisfied by this response.
-    fn get_range(&self) -> Option<ResponseRange>;
-
-    /// Get the expiration time of this response. If [`None`], it never expires.
-    fn expiration_time(&self) -> Option<Self::Timepoint>;
-
-    /// Return a new copy of the `Data` to be used for cache responses.
-    fn get_data_for_cache(&self) -> Self::Data;
+    fn from_parts(data: Self::Data, range: ResponseRange, body: BodyStream) -> Self;
 
     /// Consume the response into its streaming body.
     fn into_body(self) -> BodyStream;
@@ -68,12 +59,15 @@ pub trait Response: 'static {
 
 /// Response variant for [`Requester`], indicating the cacheability of the response.
 pub enum ResponseType<R: Response> {
-    /// Cache this response.
+    /// Cache this response with the given output range, cache expire time, and
+    /// associated cache data. If the expire time is [`None`], it will never be
+    /// revalidated.
     ///
     /// This should only be returned if all of the following are true:
     ///    * The request was successful
+    ///    * The response returned a valid range
     ///    * The response returned the same range as the request
-    Cache(R),
+    Cache(R, ResponseRange, Option<R::Timepoint>, R::Data),
 
     /// Passthrough this response.
     Passthrough(R)
@@ -82,7 +76,7 @@ pub enum ResponseType<R: Response> {
 /// The type of a request which can be repeated with different ranges.
 pub trait Requester<R: Response>: Send + Sync + 'static {
     /// Fetch a new copy of the response with the given range.
-    fn fetch(&self, range: &RequestRange) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + '_>>;
+    fn fetch(&self, range: &RequestRange) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync + '_>>;
 }
 
 /// The type of a factory for requesters. Given a key, it will create
