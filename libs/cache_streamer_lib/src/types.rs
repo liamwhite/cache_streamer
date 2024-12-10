@@ -19,6 +19,7 @@ pub enum RequestRange {
 
     /// This specific range of bytes from the file.
     /// Start inclusive, end exclusive.
+    /// If `start > end`, unpredictable behavior may occur.
     Bounded(usize, usize),
 }
 

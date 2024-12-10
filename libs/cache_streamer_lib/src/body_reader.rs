@@ -1,7 +1,7 @@
 use crate::types::*;
 
 use bytes::Bytes;
-use futures::StreamExt;
+use futures::{stream, Stream, StreamExt};
 use std::sync::Arc;
 
 /// A simple body reader which tracks a blocks object and exhausts once there are no
@@ -22,7 +22,6 @@ impl BlockBodyReader {
     fn next(&self, offset: &mut usize, end: usize) -> Option<Bytes> {
         debug_assert!(*offset < end);
 
-        // Return next if bytes are immediately readable.
         self.0
             .lock()
             .get(*offset, end - *offset)
@@ -123,7 +122,7 @@ where
 /// A reader type which tracks a blocks object and a requester, and if the blocks
 /// object exhausts during a pull, makes a new tee body reader covering the remaining
 /// range.
-enum AdaptiveReader<R> {
+pub enum AdaptiveReader<R> {
     Block(Arc<dyn Requester<R>>, BlockBodyReader),
     Tee(TeeBodyReader),
     Error,
@@ -133,6 +132,14 @@ impl<R> AdaptiveReader<R>
 where
     R: Response,
 {
+    pub fn new_adaptive(requester: Arc<dyn Requester<R>>, blocks: Arc<Blocks>) -> Self {
+        Self::Block(requester, BlockBodyReader::new(blocks))
+    }
+
+    pub fn new_from_body_stream(blocks: Arc<Blocks>, stream: BodyStream) -> Self {
+        Self::Tee(TeeBodyReader::new(blocks, stream))
+    }
+
     /// If currently reading blocks, attempts to pull new data from the blocks. If reading
     /// blocks fails, creates a new tee body reader at the current offset. Otherwise, attempts
     /// to pull data from the tee body reader.
@@ -159,9 +166,8 @@ where
 
                 // Build the new tee reader from the input range.
                 let range = RequestRange::Bounded(*offset, end);
-                let tee = make_tee_reader(requester, reader.into_inner(), &range).await;
 
-                match tee {
+                match make_tee_reader(requester, reader.into_inner(), &range).await {
                     Err(e) => return Some(Err(e)),
                     Ok(tee) => tee,
                 }
@@ -174,5 +180,27 @@ where
         *self = Self::Tee(tee);
 
         result
+    }
+
+    /// Consumes and converts the reader into a stream of `Result<Bytes>`.
+    pub fn into_stream(self, size: usize, range: &RequestRange) -> impl Stream<Item = Result<Bytes>> {
+        let (start, end) = match *range {
+            RequestRange::None => (0, size),
+            RequestRange::Prefix(start) => (start.min(size), size),
+            RequestRange::Suffix(count) => (size - count.min(size), size),
+            RequestRange::Bounded(start, end) => (start.min(size), end.min(size)),
+        };
+
+        stream::unfold((start, end, self), move |(mut offset, end, mut this)| async move {
+            if offset >= end {
+                return None;
+            }
+
+            if let Some(result) = this.next(&mut offset, end).await {
+                return Some((result, (offset, end, this)));
+            }
+
+            None
+        })
     }
 }
