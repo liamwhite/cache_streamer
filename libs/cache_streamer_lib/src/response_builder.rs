@@ -19,8 +19,8 @@ impl<R> ResponseBuilder<R>
 where
     R: Response,
 {
-    /// Create a new builder based on a response, then return self and a response
-    /// created from the builder.
+    /// Create a new builder based on a template response, then return self and a response
+    /// created from the builder and the input response stream.
     pub fn new(
         response: R,
         range: &ResponseRange,

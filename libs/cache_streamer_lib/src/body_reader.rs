@@ -65,7 +65,7 @@ impl StreamBodyReader {
 }
 
 /// A body reader which pipes the results of a body stream into a blocks
-/// reference while also returning the results.
+/// object while also returning the results.
 pub struct TeeBodyReader {
     blocks: Blocks,
     stream_reader: StreamBodyReader,
