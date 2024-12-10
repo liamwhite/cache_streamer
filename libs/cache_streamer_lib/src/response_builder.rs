@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::types::*;
 use crate::body_reader::AdaptiveReader;
+use crate::types::*;
 
 /// Builder for response data based on a requester and template response.
 pub struct ResponseBuilder<R>
@@ -24,7 +24,7 @@ where
         response: R,
         range: &ResponseRange,
         data: R::Data,
-        requester: Arc<dyn Requester<R>>
+        requester: Arc<dyn Requester<R>>,
     ) -> (R, Self) {
         let this = Self {
             requester,
@@ -57,7 +57,11 @@ where
             bytes_range: RequestRange::Bounded(start, end),
         };
 
-        R::from_parts(self.data.clone(), range, Box::pin(reader.into_stream(start, end)))
+        R::from_parts(
+            self.data.clone(),
+            range,
+            Box::pin(reader.into_stream(start, end)),
+        )
     }
 }
 

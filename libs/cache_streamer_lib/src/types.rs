@@ -70,13 +70,16 @@ pub enum ResponseType<R: Response> {
     Cache(R, ResponseRange, Option<R::Timepoint>, R::Data),
 
     /// Passthrough this response.
-    Passthrough(R)
+    Passthrough(R),
 }
 
 /// The type of a request which can be repeated with different ranges.
 pub trait Requester<R: Response>: Send + Sync + 'static {
     /// Fetch a new copy of the response with the given range.
-    fn fetch(&self, range: &RequestRange) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync + '_>>;
+    fn fetch(
+        &self,
+        range: &RequestRange,
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync + '_>>;
 }
 
 /// The type of a factory for requesters. Given a key, it will create

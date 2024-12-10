@@ -48,7 +48,9 @@ where
         // some form of valid response range. Without this, we can't support suffix queries
         // correctly.
         let (response, range, expire_time, data) = match requester.fetch(range).await? {
-            ResponseType::Cache(response, range, expire_time, data) => (response, range, expire_time, data),
+            ResponseType::Cache(response, range, expire_time, data) => {
+                (response, range, expire_time, data)
+            }
             ResponseType::Passthrough(r) => return Ok(r),
         };
 

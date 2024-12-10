@@ -16,19 +16,15 @@ impl BlockBodyReader {
     /// Attempt to pull bytes from the sparse file at the given offset. If bytes can
     /// be pulled from the sparse map at this location, then the offset is updated,
     /// and a view of the bytes is returned. Otherwise, [`None`] is returned.
-    /// 
+    ///
     /// The caller is responsible for ensuring `offset < end` before calling this function.
     /// Failure to do so will result in unpredictable behavior.
     fn next(&self, offset: &mut usize, end: usize) -> Option<Bytes> {
         debug_assert!(*offset < end);
 
-        self.0
-            .lock()
-            .get(*offset, end - *offset)
-            .map(|bytes| {
-                *offset += bytes.len();
-                bytes
-            })
+        self.0.lock().get(*offset, end - *offset).inspect(|bytes| {
+            *offset += bytes.len();
+        })
     }
 
     /// Consume the block reader into the blocks shared reference.
@@ -92,20 +88,16 @@ impl TeeBodyReader {
     async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
         let current_offset = *offset;
 
-        Some(self.stream_reader
-            .next(offset, end)
-            .await?
-            .map(|bytes| {
-                self.blocks.lock().put_new(current_offset, bytes.clone());
-                bytes
-            }))
+        Some(self.stream_reader.next(offset, end).await?.inspect(|bytes| {
+            self.blocks.lock().put_new(current_offset, bytes.clone());
+        }))
     }
 }
 
 async fn make_tee_reader<R>(
     requester: Arc<dyn Requester<R>>,
     blocks: Arc<Blocks>,
-    range: &RequestRange
+    range: &RequestRange,
 ) -> Result<TeeBodyReader>
 where
     R: Response,
@@ -170,7 +162,7 @@ where
                     Err(e) => return Some(Err(e)),
                     Ok(tee) => tee,
                 }
-            },
+            }
         };
 
         let result = tee.next(offset, end).await;
@@ -186,16 +178,19 @@ where
     /// The caller should check that `start <= end` before calling this function.
     /// Failure to do so may result in unexpected stream output.
     pub fn into_stream(self, start: usize, end: usize) -> impl Stream<Item = Result<Bytes>> {
-        stream::unfold((start, end, self), |(mut offset, end, mut this)| async move {
-            if offset >= end {
-                return None;
-            }
+        stream::unfold(
+            (start, end, self),
+            |(mut offset, end, mut this)| async move {
+                if offset >= end {
+                    return None;
+                }
 
-            if let Some(result) = this.next(&mut offset, end).await {
-                return Some((result, (offset, end, this)));
-            }
+                if let Some(result) = this.next(&mut offset, end).await {
+                    return Some((result, (offset, end, this)));
+                }
 
-            None
-        })
+                None
+            },
+        )
     }
 }
