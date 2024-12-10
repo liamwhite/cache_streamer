@@ -79,7 +79,7 @@ pub trait Requester<R: Response>: Send + Sync + 'static {
     fn fetch(
         &self,
         range: &RequestRange,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync>>;
 }
 
 /// The type of a factory for requesters. Given a key, it will create

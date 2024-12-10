@@ -88,9 +88,14 @@ impl TeeBodyReader {
     async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
         let current_offset = *offset;
 
-        Some(self.stream_reader.next(offset, end).await?.inspect(|bytes| {
-            self.blocks.lock().put_new(current_offset, bytes.clone());
-        }))
+        Some(
+            self.stream_reader
+                .next(offset, end)
+                .await?
+                .inspect(|bytes| {
+                    self.blocks.lock().put_new(current_offset, bytes.clone());
+                }),
+        )
     }
 }
 
