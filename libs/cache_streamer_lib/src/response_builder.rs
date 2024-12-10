@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::blocks::Blocks;
 use crate::body_reader::AdaptiveReader;
 use crate::types::*;
 
@@ -11,7 +12,7 @@ where
     requester: Arc<dyn Requester<R>>,
     size: usize,
     data: R::Data,
-    blocks: Arc<Blocks>,
+    blocks: Blocks,
 }
 
 impl<R> ResponseBuilder<R>
@@ -30,7 +31,7 @@ where
             requester,
             size: range.bytes_len,
             data,
-            blocks: Arc::default(),
+            blocks: Blocks::default(),
         };
 
         let blocks = this.blocks.clone();

@@ -1,3 +1,4 @@
+use crate::blocks::Blocks;
 use crate::types::*;
 
 use bytes::Bytes;
@@ -6,10 +7,10 @@ use std::sync::Arc;
 
 /// A simple body reader which tracks a blocks object and exhausts once there are no
 /// remaining blocks at a given offset.
-pub struct BlockBodyReader(Arc<Blocks>);
+pub struct BlockBodyReader(Blocks);
 
 impl BlockBodyReader {
-    fn new(blocks: Arc<Blocks>) -> Self {
+    fn new(blocks: Blocks) -> Self {
         Self(blocks)
     }
 
@@ -22,13 +23,13 @@ impl BlockBodyReader {
     fn next(&self, offset: &mut usize, end: usize) -> Option<Bytes> {
         debug_assert!(*offset < end);
 
-        self.0.lock().get(*offset, end - *offset).inspect(|bytes| {
+        self.0.get(*offset, end - *offset).inspect(|bytes| {
             *offset += bytes.len();
         })
     }
 
-    /// Consume the block reader into the blocks shared reference.
-    fn into_inner(self) -> Arc<Blocks> {
+    /// Consume the block reader into the blocks object.
+    fn into_inner(self) -> Blocks {
         self.0
     }
 }
@@ -66,12 +67,12 @@ impl StreamBodyReader {
 /// A body reader which pipes the results of a body stream into a blocks
 /// reference while also returning the results.
 pub struct TeeBodyReader {
-    blocks: Arc<Blocks>,
+    blocks: Blocks,
     stream_reader: StreamBodyReader,
 }
 
 impl TeeBodyReader {
-    fn new(blocks: Arc<Blocks>, stream: BodyStream) -> Self {
+    fn new(blocks: Blocks, stream: BodyStream) -> Self {
         Self {
             blocks,
             stream_reader: StreamBodyReader::new(stream),
@@ -93,7 +94,7 @@ impl TeeBodyReader {
                 .next(offset, end)
                 .await?
                 .inspect(|bytes| {
-                    self.blocks.lock().put_new(current_offset, bytes.clone());
+                    self.blocks.put_new(current_offset, bytes.clone());
                 }),
         )
     }
@@ -101,7 +102,7 @@ impl TeeBodyReader {
 
 async fn make_tee_reader<R>(
     requester: Arc<dyn Requester<R>>,
-    blocks: Arc<Blocks>,
+    blocks: Blocks,
     range: &RequestRange,
 ) -> Result<TeeBodyReader>
 where
@@ -128,11 +129,11 @@ impl<R> AdaptiveReader<R>
 where
     R: Response,
 {
-    pub fn new_adaptive(requester: Arc<dyn Requester<R>>, blocks: Arc<Blocks>) -> Self {
+    pub fn new_adaptive(requester: Arc<dyn Requester<R>>, blocks: Blocks) -> Self {
         Self::Block(requester, BlockBodyReader::new(blocks))
     }
 
-    pub fn new_from_body_stream(blocks: Arc<Blocks>, stream: BodyStream) -> Self {
+    pub fn new_from_body_stream(blocks: Blocks, stream: BodyStream) -> Self {
         Self::Tee(TeeBodyReader::new(blocks, stream))
     }
 

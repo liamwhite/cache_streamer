@@ -88,6 +88,3 @@ pub trait RequestBackend<K, R: Response>: Send + Sync + 'static {
     /// Create a new [`Requester`] that fetches requests for this key.
     fn create_for_key(&self, key: K) -> Arc<dyn Requester<R>>;
 }
-
-/// The type of a file sparse map.
-pub(crate) type Blocks = parking_lot::Mutex<sparse_map::SparseMap<Bytes>>;
