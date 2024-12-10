@@ -40,8 +40,6 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
     }
 }
 
-// TODO: load factor
-
 /// A sparse mapping of [`usize`]-bounded intervals to [`ContiguousCollection`]s of type `T`.
 ///
 /// When `T` is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which
@@ -130,6 +128,11 @@ where
         end - start
     }
 
+    /// Returns whether the sparse map covers any indices.
+    pub fn is_empty(&self) -> bool {
+        self.blocks.borrow().is_empty()
+    }
+
     fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
     where
         C: ContiguousCollection<Slice = C>,
@@ -151,13 +154,13 @@ where
                 Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
                     // We intersect a block at a higher start, but there is a hole here.
                     let data_advance = data.len().min(node.start - offset);
-                    on_hole(&mut it, offset, data.slice(0..data_advance));
+                    on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
 
                     (data_advance, false)
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
-                    on_hole(&mut it, offset, data);
+                    on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
 
                     break;
                 }
