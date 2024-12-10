@@ -28,8 +28,15 @@ where
     pub(crate) fn stream(&self, range: &RequestRange) -> Result<R> {
         let blocks = self.blocks.clone();
         let requester = self.requester.clone();
-        let size = self.size;
 
-        let stream = AdaptiveReader::new_adaptive(requester, blocks).into_stream(size, range);
+        let size = self.size;
+        let (start, end) = match *range {
+            RequestRange::None => (0, size),
+            RequestRange::Prefix(start) => (start.min(size), size),
+            RequestRange::Suffix(count) => (size - count.min(size), size),
+            RequestRange::Bounded(start, end) => (start.min(size), end.min(size)),
+        };
+
+        let stream = AdaptiveReader::new_adaptive(requester, blocks).into_stream(start, end);
     }
 }

@@ -183,15 +183,11 @@ where
     }
 
     /// Consumes and converts the reader into a stream of `Result<Bytes>`.
-    pub fn into_stream(self, size: usize, range: &RequestRange) -> impl Stream<Item = Result<Bytes>> {
-        let (start, end) = match *range {
-            RequestRange::None => (0, size),
-            RequestRange::Prefix(start) => (start.min(size), size),
-            RequestRange::Suffix(count) => (size - count.min(size), size),
-            RequestRange::Bounded(start, end) => (start.min(size), end.min(size)),
-        };
-
-        stream::unfold((start, end, self), move |(mut offset, end, mut this)| async move {
+    ///
+    /// The caller is responsible for ensuring `start < end` before calling this function.
+    /// Failure to do so may result in unpredictable behavior.
+    pub fn into_stream(self, start: usize, end: usize) -> impl Stream<Item = Result<Bytes>> {
+        stream::unfold((start, end, self), |(mut offset, end, mut this)| async move {
             if offset >= end {
                 return None;
             }
