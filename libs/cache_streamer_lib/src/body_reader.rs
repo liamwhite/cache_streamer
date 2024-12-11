@@ -143,7 +143,7 @@ where
     ///
     /// The caller is responsible for ensuring `offset < end` before calling this function.
     /// Failure to do so will result in unpredictable behavior.
-    async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
+    pub async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
         // Consume ourself into the error type.
         //
         // We assume we are going to handle the tee reader case, since it occurs twice,

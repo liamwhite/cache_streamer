@@ -24,7 +24,7 @@ pub enum RequestRange {
 }
 
 /// A file range returned by the server.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct ResponseRange {
     /// The total number of bytes in the file.
     pub bytes_len: usize,
