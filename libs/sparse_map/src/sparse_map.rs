@@ -91,7 +91,7 @@ where
     /// and discards sections which correspond to offsets which have already been mapped.
     pub fn put_new<C>(&mut self, offset: usize, data: C)
     where
-        C: ContiguousCollection<Slice = C> + std::fmt::Debug,
+        C: ContiguousCollection<Slice = C>,
         T: From<C>,
     {
         self.walk_discontinuous_regions(offset, data, |it, offset, data| {
@@ -135,27 +135,19 @@ where
 
     fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
     where
-        C: ContiguousCollection<Slice = C> + std::fmt::Debug,
+        C: ContiguousCollection<Slice = C>,
         F: FnMut(&mut CursorMut<'_, NodeTreeAdapter<T>>, usize, C),
     {
         let mut blocks = self.blocks.borrow_mut();
-        let mut it = blocks.upper_bound_mut(Bound::Included(&offset));
-        println!("--- start");
+        let mut it: CursorMut<'_, NodeTreeAdapter<T>> =
+            blocks.upper_bound_mut(Bound::Included(&offset));
 
         while !data.is_empty() {
             let requested_range = offset..(offset + data.len());
-            match it.get() {
-                Some(node) => {
-                    println!("trying to fit {:?} into {:?} (node {:?})", data, requested_range, node.range())
-                },
-                _ => println!("trying to fit {:?} into {:?} (no node)", data, requested_range)
-            };
-            
             let data_advance = match it.get() {
                 Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                     // We are already inside this block, so skip it.
                     let data_advance = data.len().min(node.block.len() - (offset - node.start));
-                    println!("collided below with block starting at {}, skipping", node.start);
                     it.move_next();
 
                     data_advance
@@ -163,14 +155,12 @@ where
                 Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
                     // We intersect a block at a higher start, but there is a hole here.
                     let data_advance = data.len().min(node.start - offset);
-                    println!("collided above with block starting at {}, slicing {}", node.start, data_advance);
                     on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
 
                     data_advance
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
-                    println!("no collisions at offset {}, slicing {}", offset, data.len());
                     if !it.is_null() {
                         it.move_next();
                     }
@@ -184,8 +174,6 @@ where
             data = data.slice(data_advance..data.len());
             offset += data_advance;
         }
-
-        println!("--- end");
     }
 }
 
