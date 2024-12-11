@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub struct BlockBodyReader(Blocks);
 
 impl BlockBodyReader {
-    fn new(blocks: Blocks) -> Self {
+    pub fn new(blocks: Blocks) -> Self {
         Self(blocks)
     }
 
@@ -20,7 +20,7 @@ impl BlockBodyReader {
     ///
     /// The caller is responsible for ensuring `offset < end` before calling this function.
     /// Failure to do so will result in unpredictable behavior.
-    fn next(&self, offset: &mut usize, end: usize) -> Option<Bytes> {
+    pub fn next(&self, offset: &mut usize, end: usize) -> Option<Bytes> {
         debug_assert!(*offset < end);
 
         self.0.get(*offset, end - *offset).inspect(|bytes| {
@@ -29,17 +29,17 @@ impl BlockBodyReader {
     }
 
     /// Consume the block reader into the blocks object.
-    fn into_inner(self) -> Blocks {
+    pub fn into_inner(self) -> Blocks {
         self.0
     }
 }
 
 /// A simple body reader which tracks an underlying stream and exhausts once the stream
 /// exhausts.
-struct StreamBodyReader(BodyStream);
+pub struct StreamBodyReader(BodyStream);
 
 impl StreamBodyReader {
-    fn new(stream: BodyStream) -> Self {
+    pub fn new(stream: BodyStream) -> Self {
         Self(stream)
     }
 
@@ -49,7 +49,7 @@ impl StreamBodyReader {
     ///
     /// The caller is responsible for ensuring `offset < end` before calling this function.
     /// Failure to do so will result in unpredictable behavior.
-    async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
+    pub async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
         debug_assert!(*offset < end);
 
         let bytes = match self.0.next().await? {
@@ -72,7 +72,7 @@ pub struct TeeBodyReader {
 }
 
 impl TeeBodyReader {
-    fn new(blocks: Blocks, stream: BodyStream) -> Self {
+    pub fn new(blocks: Blocks, stream: BodyStream) -> Self {
         Self {
             blocks,
             stream_reader: StreamBodyReader::new(stream),
@@ -86,7 +86,7 @@ impl TeeBodyReader {
     ///
     /// The caller is responsible for ensuring `offset < end` before calling this function.
     /// Failure to do so will result in unpredictable behavior.
-    async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
+    pub async fn next(&mut self, offset: &mut usize, end: usize) -> Option<Result<Bytes>> {
         let current_offset = *offset;
 
         Some(

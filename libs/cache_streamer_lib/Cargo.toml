@@ -10,3 +10,6 @@ futures = "0.3"
 parking_lot = "0.12"
 sized_ttl_cache = { path = "../sized_ttl_cache" }
 sparse_map = { path = "../sparse_map" }
+
+[dev-dependencies]
+tokio = { version = "1.42.0", features = ["full"] }

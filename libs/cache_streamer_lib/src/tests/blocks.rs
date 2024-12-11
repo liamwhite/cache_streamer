@@ -1,17 +1,16 @@
 use crate::blocks::Blocks;
-use bytes::Bytes;
 
 #[test]
 fn test_put_get() {
     let blocks = Blocks::default();
-    blocks.put_new(0, Bytes::from(&b"hello world"[..]));
-    blocks.put_new(6, Bytes::from(&b"earth"[..]));
+    blocks.put_new(0, b"hello world"[..].into());
+    blocks.put_new(6, b"earth"[..].into());
 
     let value = blocks.get(0, 5);
-    assert_eq!(value.as_ref().map(|b| b.as_ref()), Some(&b"hello"[..]));
+    assert_eq!(value.unwrap().as_ref(), &b"hello"[..]);
 
     let value = blocks.get(6, 5);
-    assert_eq!(value.as_ref().map(|b| b.as_ref()), Some(&b"world"[..]));
+    assert_eq!(value.unwrap().as_ref(), &b"world"[..]);
 }
 
 #[test]
@@ -23,7 +22,7 @@ fn test_send_sync() {
             blocks.get(0, 5);
         });
         s.spawn(|| {
-            blocks.put_new(0, Bytes::from(&b"hello world"[..]));  
+            blocks.put_new(0, b"hello world"[..].into());
         });
     });
 
