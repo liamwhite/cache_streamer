@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::blocks::Blocks;
 use crate::body_reader::*;
 
-use super::{AdaptiveRequester, GOODBYE, HELLO_WORLD};
+use super::{SimpleRequester, GOODBYE, HELLO_WORLD};
 use bytes::Bytes;
 use futures::{stream, StreamExt};
 
@@ -87,7 +87,7 @@ async fn test_adaptive_body_reader() {
     let blocks = Blocks::default();
     blocks.put_new(0, HELLO_WORLD.into());
 
-    let requester = Arc::new(AdaptiveRequester);
+    let requester = Arc::new(SimpleRequester);
     let mut reader = AdaptiveReader::new_adaptive(requester, blocks.clone());
     let mut offset = 0;
     let end = HELLO_WORLD.len() + GOODBYE.len();
