@@ -73,10 +73,10 @@ where
         match blocks.upper_bound(Bound::Included(&offset)).get() {
             Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                 // Return a view of this block.
-                Some(
-                    node.block
-                        .slice((offset - node.start)..node.block.len().min(max_size)),
-                )
+                let start = offset - node.start;
+                let size = (node.block.len() - start).min(max_size);
+
+                Some(node.block.slice(start..(start + size)))
             }
             _ => {
                 // Nothing mapped at offset, so nothing to return.
@@ -91,7 +91,7 @@ where
     /// and discards sections which correspond to offsets which have already been mapped.
     pub fn put_new<C>(&mut self, offset: usize, data: C)
     where
-        C: ContiguousCollection<Slice = C>,
+        C: ContiguousCollection<Slice = C> + std::fmt::Debug,
         T: From<C>,
     {
         self.walk_discontinuous_regions(offset, data, |it, offset, data| {
@@ -135,31 +135,46 @@ where
 
     fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
     where
-        C: ContiguousCollection<Slice = C>,
+        C: ContiguousCollection<Slice = C> + std::fmt::Debug,
         F: FnMut(&mut CursorMut<'_, NodeTreeAdapter<T>>, usize, C),
     {
         let mut blocks = self.blocks.borrow_mut();
-        let mut it = blocks.lower_bound_mut(Bound::Included(&offset));
+        let mut it = blocks.upper_bound_mut(Bound::Included(&offset));
+        println!("--- start");
 
         while !data.is_empty() {
             let requested_range = offset..(offset + data.len());
-            let (data_advance, it_advance) = match it.get() {
+            match it.get() {
+                Some(node) => {
+                    println!("trying to fit {:?} into {:?} (node {:?})", data, requested_range, node.range())
+                },
+                _ => println!("trying to fit {:?} into {:?} (no node)", data, requested_range)
+            };
+            
+            let data_advance = match it.get() {
                 Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                     // We are already inside this block, so skip it.
-                    (
-                        data.len().min(node.block.len() - (offset - node.start)),
-                        true,
-                    )
+                    let data_advance = data.len().min(node.block.len() - (offset - node.start));
+                    println!("collided below with block starting at {}, skipping", node.start);
+                    it.move_next();
+
+                    data_advance
                 }
                 Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
                     // We intersect a block at a higher start, but there is a hole here.
                     let data_advance = data.len().min(node.start - offset);
+                    println!("collided above with block starting at {}, slicing {}", node.start, data_advance);
                     on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
 
-                    (data_advance, false)
+                    data_advance
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
+                    println!("no collisions at offset {}, slicing {}", offset, data.len());
+                    if !it.is_null() {
+                        it.move_next();
+                    }
+
                     on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
 
                     break;
@@ -168,11 +183,9 @@ where
 
             data = data.slice(data_advance..data.len());
             offset += data_advance;
-
-            if it_advance {
-                it.move_next();
-            }
         }
+
+        println!("--- end");
     }
 }
 
