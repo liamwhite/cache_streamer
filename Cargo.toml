@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cache_streamer_lib = { path = "libs/cache_streamer_lib" }
+cache_streamer_http = { path = "libs/cache_streamer_http" }

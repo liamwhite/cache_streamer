@@ -45,6 +45,13 @@ checksum = "9ac0150caa2ae65ca5bd83f25c7de183dea78d4d366469f148435e2acfbad0da"
 name = "cache_streamer"
 version = "0.1.0"
 dependencies = [
+ "cache_streamer_http",
+]
+
+[[package]]
+name = "cache_streamer_http"
+version = "0.1.0"
+dependencies = [
  "cache_streamer_lib",
 ]
 
