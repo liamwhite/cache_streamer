@@ -27,7 +27,7 @@ async fn test_response_builder() {
     assert_eq!(request_count.load(Ordering::Relaxed), 1);
 
     let stream = builder
-        .stream(&RequestRange::Bounded(0, 0))
+        .stream(&RequestRange::FromTo(0, 0))
         .into_body()
         .map(|x| x.unwrap())
         .collect::<BytesMut>()

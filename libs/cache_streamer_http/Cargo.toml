@@ -7,6 +7,8 @@ edition = "2021"
 cache_streamer_lib = { path = "../cache_streamer_lib" }
 chrono = "0.4"
 headers = "0.4"
+http = "1.2"
+range_header = { path = "../range_header" }
 reqwest = { version = "0.12", features = ["stream"] }
 
 [dev-dependencies]

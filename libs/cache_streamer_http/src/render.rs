@@ -7,13 +7,13 @@ use headers::{ContentLength, ContentRange, HeaderMap, HeaderMapExt};
 pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> HeaderMap {
     match range.bytes_range {
         RequestRange::None => put_length(headers, range.bytes_len),
-        RequestRange::Prefix(start) => put_range(headers, start..range.bytes_len, range.bytes_len),
-        RequestRange::Suffix(size) => put_range(
+        RequestRange::AllFrom(start) => put_range(headers, start..range.bytes_len, range.bytes_len),
+        RequestRange::Last(size) => put_range(
             headers,
             (range.bytes_len - size)..range.bytes_len,
             range.bytes_len,
         ),
-        RequestRange::Bounded(start, end) => put_range(headers, start..end, range.bytes_len),
+        RequestRange::FromTo(start, end) => put_range(headers, start..end, range.bytes_len),
     }
 }
 

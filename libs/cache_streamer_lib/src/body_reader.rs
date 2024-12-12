@@ -162,7 +162,7 @@ where
                 }
 
                 // Build the new tee reader from the input range.
-                let range = RequestRange::Bounded(*offset, end);
+                let range = RequestRange::FromTo(*offset, end);
 
                 match make_tee_reader(requester, reader.into_inner(), &range).await {
                     Err(e) => return Some(Err(e)),

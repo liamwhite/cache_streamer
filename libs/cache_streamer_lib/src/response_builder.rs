@@ -55,7 +55,7 @@ where
 
         let range = ResponseRange {
             bytes_len: self.size,
-            bytes_range: RequestRange::Bounded(start, end),
+            bytes_range: RequestRange::FromTo(start, end),
         };
 
         R::from_parts(
@@ -71,8 +71,8 @@ where
 fn get_start_and_end(size: usize, range: &RequestRange) -> (usize, usize) {
     match *range {
         RequestRange::None => (0, size),
-        RequestRange::Prefix(start) => (start.min(size), size),
-        RequestRange::Suffix(count) => (size - count.min(size), size),
-        RequestRange::Bounded(start, end) => (start.min(size), end.min(size)),
+        RequestRange::AllFrom(start) => (start.min(size), size),
+        RequestRange::Last(count) => (size - count.min(size), size),
+        RequestRange::FromTo(start, end) => (start.min(size), end.min(size)),
     }
 }

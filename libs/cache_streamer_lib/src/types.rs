@@ -11,16 +11,16 @@ pub enum RequestRange {
     #[default]
     None,
 
-    /// This many bytes at the beginning of the file.
-    Prefix(usize),
+    /// All bytes starting from this offset.
+    AllFrom(usize),
 
     /// This many bytes at the end of the file.
-    Suffix(usize),
+    Last(usize),
 
     /// This specific range of bytes from the file.
     /// Start inclusive, end exclusive.
     /// If `start > end`, unpredictable behavior may occur.
-    Bounded(usize, usize),
+    FromTo(usize, usize),
 }
 
 /// A file range returned by the server.

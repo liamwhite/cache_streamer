@@ -105,6 +105,8 @@ dependencies = [
  "cache_streamer_lib",
  "chrono",
  "headers",
+ "http",
+ "range_header",
  "reqwest",
  "tokio",
 ]
@@ -985,6 +987,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5b9d34b8991d19d98081b46eacdd8eb58c6f2b201139f7c5f643cc155a633af"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "range_header"
+version = "0.1.0"
+dependencies = [
+ "headers",
+ "http",
 ]
 
 [[package]]
