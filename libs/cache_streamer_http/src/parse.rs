@@ -17,7 +17,7 @@ pub fn get_request_range(headers: &HeaderMap) -> Result<RequestRange, StatusCode
     };
 
     let range = match range {
-        ByteRangeSpec::FromTo(start, end) if end > start => {
+        ByteRangeSpec::FromTo(start, end) if start > end => {
             return Err(StatusCode::RANGE_NOT_SATISFIABLE)
         }
         ByteRangeSpec::FromTo(start, end) => {
