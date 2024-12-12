@@ -1,3 +1,4 @@
+use core::sync::atomic::{AtomicUsize, Ordering};
 use std::pin::Pin;
 
 use crate::types::*;
@@ -12,8 +13,6 @@ const HELLO_WORLD: &[u8] = b"hello world";
 const GOODBYE: &[u8] = b"goodbye";
 
 struct SimpleResponse(BodyStream);
-struct SimpleRequester;
-struct PassthroughRequester;
 
 impl SimpleResponse {
     fn new() -> Self {
@@ -34,11 +33,25 @@ impl Response for SimpleResponse {
     }
 }
 
+struct SimpleRequester(AtomicUsize);
+
+impl SimpleRequester {
+    fn new() -> Self {
+        Self(AtomicUsize::default())
+    }
+
+    fn request_count(&self) -> usize {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
 impl Requester<SimpleResponse> for SimpleRequester {
     fn fetch(
         &self,
         range: &RequestRange,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseType<SimpleResponse>>> + Send + Sync>> {
+        self.0.fetch_add(1, Ordering::Relaxed);
+
         Box::pin(future::ready(Ok(ResponseType::Cache(
             SimpleResponse::new(),
             ResponseRange {
@@ -50,6 +63,8 @@ impl Requester<SimpleResponse> for SimpleRequester {
         ))))
     }
 }
+
+struct PassthroughRequester;
 
 impl Requester<SimpleResponse> for PassthroughRequester {
     fn fetch(

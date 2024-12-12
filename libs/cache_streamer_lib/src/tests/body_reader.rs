@@ -87,7 +87,7 @@ async fn test_adaptive_body_reader() {
     let blocks = Blocks::default();
     blocks.put_new(0, HELLO_WORLD.into());
 
-    let requester = Arc::new(SimpleRequester);
+    let requester = Arc::new(SimpleRequester::new());
     let mut reader = AdaptiveReader::new_adaptive(requester, blocks.clone());
     let mut offset = 0;
     let end = HELLO_WORLD.len() + GOODBYE.len();
