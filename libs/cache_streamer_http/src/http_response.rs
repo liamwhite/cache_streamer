@@ -3,12 +3,12 @@ use cache_streamer_lib::types::{BodyStream, Response, ResponseRange};
 use chrono::{DateTime, Utc};
 use headers::HeaderMap;
 
-pub struct HttpResponse {
+pub struct HTTPResponse {
     headers: HeaderMap,
     body: BodyStream,
 }
 
-impl HttpResponse {
+impl HTTPResponse {
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -18,7 +18,7 @@ impl HttpResponse {
     }
 }
 
-impl Response for HttpResponse {
+impl Response for HTTPResponse {
     type Timepoint = DateTime<Utc>;
     type Data = HeaderMap;
 
@@ -29,6 +29,6 @@ impl Response for HttpResponse {
     }
 
     fn into_body(self) -> BodyStream {
-        HttpResponse::into_body(self)
+        HTTPResponse::into_body(self)
     }
 }
