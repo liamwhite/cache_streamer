@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 cache_streamer_lib = { path = "../cache_streamer_lib" }
+chrono = "0.4"
+headers = "0.4"
+reqwest = { version = "0.12", features = ["stream"] }
 
 [dev-dependencies]
 tokio = { version = "1.42.0", features = ["full"] }
