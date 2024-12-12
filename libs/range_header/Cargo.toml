@@ -1,0 +1,8 @@
+[package]
+name = "range_header"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+headers = "0.4"
+http = "1.2"
