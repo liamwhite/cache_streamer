@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::pin::Pin;
+use std::sync::Arc;
 
 use crate::types::*;
 use bytes::Bytes;
@@ -8,9 +9,11 @@ use futures::{future, stream, Future};
 mod blocks;
 mod body_reader;
 mod response_builder;
+mod service;
 
 const HELLO_WORLD: &[u8] = b"hello world";
 const GOODBYE: &[u8] = b"goodbye";
+const EXPIRE_TIME: usize = 2;
 
 struct SimpleResponse(BodyStream);
 
@@ -33,15 +36,14 @@ impl Response for SimpleResponse {
     }
 }
 
-struct SimpleRequester(AtomicUsize);
+struct SimpleRequester {
+    count: Arc<AtomicUsize>,
+    is_cache: bool,
+}
 
 impl SimpleRequester {
-    fn new() -> Self {
-        Self(AtomicUsize::default())
-    }
-
-    fn request_count(&self) -> usize {
-        self.0.load(Ordering::Relaxed)
+    fn new(count: Arc<AtomicUsize>, is_cache: bool) -> Self {
+        Self { count, is_cache }
     }
 }
 
@@ -50,29 +52,46 @@ impl Requester<SimpleResponse> for SimpleRequester {
         &self,
         range: &RequestRange,
     ) -> Pin<Box<dyn Future<Output = Result<ResponseType<SimpleResponse>>> + Send + Sync>> {
-        self.0.fetch_add(1, Ordering::Relaxed);
+        self.count.fetch_add(1, Ordering::Relaxed);
 
-        Box::pin(future::ready(Ok(ResponseType::Cache(
-            SimpleResponse::new(),
-            ResponseRange {
-                bytes_len: GOODBYE.len(),
-                bytes_range: range.clone(),
-            },
-            None,
-            (),
-        ))))
+        let resp = SimpleResponse::new();
+
+        Box::pin(future::ready(Ok(if self.is_cache {
+            ResponseType::Cache(
+                resp,
+                ResponseRange {
+                    bytes_len: GOODBYE.len(),
+                    bytes_range: range.clone(),
+                },
+                Some(EXPIRE_TIME),
+                (),
+            )
+        } else {
+            ResponseType::Passthrough(resp)
+        })))
     }
 }
 
-struct PassthroughRequester;
+struct SimpleRequestBackend {
+    count: Arc<AtomicUsize>,
+    is_cache: bool,
+}
 
-impl Requester<SimpleResponse> for PassthroughRequester {
-    fn fetch(
-        &self,
-        _range: &RequestRange,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<SimpleResponse>>> + Send + Sync>> {
-        Box::pin(future::ready(Ok(ResponseType::Passthrough(
-            SimpleResponse::new(),
-        ))))
+impl SimpleRequestBackend {
+    fn new(is_cache: bool) -> Self {
+        Self {
+            count: Arc::default(),
+            is_cache,
+        }
+    }
+
+    fn request_count(&self) -> usize {
+        self.count.load(Ordering::Relaxed)
+    }
+}
+
+impl RequestBackend<String, SimpleResponse> for SimpleRequestBackend {
+    fn create_for_key(&self, _key: String) -> Arc<dyn Requester<SimpleResponse>> {
+        Arc::new(SimpleRequester::new(self.count.clone(), self.is_cache))
     }
 }

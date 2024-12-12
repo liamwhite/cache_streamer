@@ -1,3 +1,4 @@
+use core::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use bytes::BytesMut;
@@ -9,12 +10,13 @@ use crate::types::*;
 
 #[tokio::test]
 async fn test_response_builder() {
-    let requester = Arc::new(SimpleRequester::new());
+    let request_count = Arc::new(AtomicUsize::default());
+    let requester = Arc::new(SimpleRequester::new(request_count.clone(), true));
     let range = RequestRange::default();
     let ResponseType::Cache(resp, range, _, data) = requester.fetch(&range).await.unwrap() else {
         panic!()
     };
-    let (resp, builder) = ResponseBuilder::new(resp, &range, data, requester.clone());
+    let (resp, builder) = ResponseBuilder::new(resp, &range, data, requester);
 
     let stream = resp
         .into_body()
@@ -22,7 +24,7 @@ async fn test_response_builder() {
         .collect::<BytesMut>()
         .await;
     assert_eq!(stream.as_ref(), GOODBYE);
-    assert_eq!(requester.request_count(), 1);
+    assert_eq!(request_count.load(Ordering::Relaxed), 1);
 
     let stream = builder
         .stream(&RequestRange::Bounded(0, 0))
@@ -31,5 +33,5 @@ async fn test_response_builder() {
         .collect::<BytesMut>()
         .await;
     assert_eq!(stream.as_ref(), &b""[..]);
-    assert_eq!(requester.request_count(), 1);
+    assert_eq!(request_count.load(Ordering::Relaxed), 1);
 }

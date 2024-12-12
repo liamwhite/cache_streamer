@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{atomic::AtomicUsize, Arc};
 
 use crate::blocks::Blocks;
 use crate::body_reader::*;
@@ -87,7 +87,8 @@ async fn test_adaptive_body_reader() {
     let blocks = Blocks::default();
     blocks.put_new(0, HELLO_WORLD.into());
 
-    let requester = Arc::new(SimpleRequester::new());
+    let request_count = Arc::new(AtomicUsize::default());
+    let requester = Arc::new(SimpleRequester::new(request_count, true));
     let mut reader = AdaptiveReader::new_adaptive(requester, blocks.clone());
     let mut offset = 0;
     let end = HELLO_WORLD.len() + GOODBYE.len();
