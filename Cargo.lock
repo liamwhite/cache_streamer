@@ -111,6 +111,7 @@ version = "0.1.0"
 dependencies = [
  "cache_streamer_lib",
  "chrono",
+ "futures",
  "headers",
  "http",
  "range_header",

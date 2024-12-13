@@ -23,7 +23,12 @@ pub fn put_request_range(range: &RequestRange) -> HeaderMap {
 
 /// Adds the appropriate HTTP `Content-Length` and `Content-Range` headers from
 /// the given [`ResponseRange`] to the given [`HeaderMap`].
-pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> HeaderMap {
+pub fn put_response_range(headers: HeaderMap, range: Option<ResponseRange>) -> HeaderMap {
+    let range = match range {
+        None => return headers,
+        Some(range) => range,
+    };
+
     match range.bytes_range {
         RequestRange::None => put_content_length(headers, range.bytes_len),
         RequestRange::AllFrom(start) => {
