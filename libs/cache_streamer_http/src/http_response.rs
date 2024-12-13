@@ -11,8 +11,8 @@ pub struct HTTPResponse {
 }
 
 impl HTTPResponse {
-    pub fn into_body(self) -> BodyStream {
-        self.body
+    pub fn into_parts(self) -> (StatusCode, HeaderMap, BodyStream) {
+        (self.status, self.headers, self.body)
     }
 }
 
@@ -35,6 +35,6 @@ impl Response for HTTPResponse {
     }
 
     fn into_body(self) -> BodyStream {
-        HTTPResponse::into_body(self)
+        self.body
     }
 }
