@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bytes = "1.9"
 cache_streamer_lib = { path = "../cache_streamer_lib" }
 chrono = "0.4"
 futures = "0.3"
