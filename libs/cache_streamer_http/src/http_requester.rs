@@ -44,7 +44,7 @@ impl Requester<HTTPResponse> for HTTPRequester {
         let req = self
             .client
             .get(self.url.clone())
-            .headers(render::put_request_range(&range))
+            .headers(render::request_range_headers(&range))
             .send();
 
         Box::pin(async move {

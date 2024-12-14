@@ -3,10 +3,10 @@ use chrono::{DateTime, Utc};
 use headers::{CacheControl, ContentLength, ContentRange, HeaderMap, HeaderMapExt};
 use range_header::{ByteRangeSpec, Range};
 
-/// Converts a HTTP `range` bound to [`RequestRange`].
+/// Converts HTTP request `range` to [`RequestRange`].
 ///
 /// * If the header is not present, the range is valid and [`RequestRange::None`].
-/// * If the header is not a byte range, the range is invalid.
+/// * If the header is not parseable or not a byte range, the range is invalid.
 /// * If the header is a multipart range, the range is invalid.
 /// * If the header specifies a from-to range with from > to, the range is invalid.
 ///
@@ -35,7 +35,7 @@ pub fn get_request_range(request_headers: &HeaderMap) -> Option<RequestRange> {
     Some(range)
 }
 
-/// Converts HTTP `content-length` and `content-range` into a [`ResponseRange`].
+/// Converts HTTP response `content-length` and `content-range` into a [`ResponseRange`].
 ///
 /// For this function to return a valid [`ResponseRange`], the following conditions
 /// must be met:
