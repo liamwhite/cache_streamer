@@ -51,7 +51,9 @@ pub trait Response: 'static {
     type Data: Clone;
 
     /// Construct a new response from its constituent parts.
-    fn from_parts(data: Self::Data, range: ResponseRange, body: BodyStream) -> Self;
+    fn from_parts(data: Self::Data, range: ResponseRange, body: BodyStream) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Consume the response into its streaming body.
     fn into_body(self) -> BodyStream;

@@ -17,7 +17,7 @@ async fn test_response_builder() {
     else {
         panic!()
     };
-    let (resp, builder) = ResponseBuilder::new(resp, &range, data, requester);
+    let (resp, builder) = ResponseBuilder::new(resp, &range, data, requester).unwrap();
 
     let stream = resp
         .into_body()
@@ -29,6 +29,7 @@ async fn test_response_builder() {
 
     let stream = builder
         .stream(&RequestRange::FromTo(0, 0))
+        .unwrap()
         .into_body()
         .map(|x| x.unwrap())
         .collect::<BytesMut>()

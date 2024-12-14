@@ -26,10 +26,10 @@ pub fn get_request_range(request_headers: &HeaderMap) -> Option<RequestRange> {
     let range = match range {
         ByteRangeSpec::FromTo(start, end) if start > end => return None,
         ByteRangeSpec::FromTo(start, end) => {
-            RequestRange::FromTo(*start as usize, *end as usize + 1)
+            RequestRange::FromTo(l(*start)?, l(*end)?.checked_add(1)?)
         }
-        ByteRangeSpec::AllFrom(start) => RequestRange::AllFrom(*start as usize),
-        ByteRangeSpec::Last(size) => RequestRange::Last(size.get() as usize),
+        ByteRangeSpec::AllFrom(start) => RequestRange::AllFrom(l(*start)?),
+        ByteRangeSpec::Last(size) => RequestRange::Last(l(size.get())?),
     };
 
     Some(range)
@@ -62,7 +62,7 @@ pub fn into_response_range(
             // No response range, no request range.
             // Fill from content-length header.
             return Some(ResponseRange {
-                bytes_len: content_length.0 as usize,
+                bytes_len: l(content_length.0)?,
                 bytes_range: RequestRange::None,
             });
         }
@@ -85,8 +85,8 @@ pub fn into_response_range(
     };
 
     Some(ResponseRange {
-        bytes_len: bytes_len as usize,
-        bytes_range: RequestRange::FromTo(bytes_range.0 as usize, bytes_range.1 as usize),
+        bytes_len: l(bytes_len)?,
+        bytes_range: RequestRange::FromTo(l(bytes_range.0)?, l(bytes_range.1)?),
     })
 }
 
@@ -114,4 +114,11 @@ pub fn get_cache_possible_and_expire_time(
     }
 
     (true, cache_control.max_age().map(|age| Utc::now() + age))
+}
+
+/// Fallibly convert a `u64` length to a `usize` length with a very short method name.
+///
+/// The `l` stands for length.
+fn l(x: u64) -> Option<usize> {
+    x.try_into().ok()
 }

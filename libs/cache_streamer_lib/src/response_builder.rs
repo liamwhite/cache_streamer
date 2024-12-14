@@ -26,7 +26,7 @@ where
         range: &ResponseRange,
         data: R::Data,
         requester: Arc<dyn Requester<R>>,
-    ) -> (R, Self) {
+    ) -> Result<(R, Self)> {
         let this = Self {
             requester,
             size: range.bytes_len,
@@ -37,12 +37,12 @@ where
         let blocks = this.blocks.clone();
         let reader = AdaptiveReader::new_from_body_stream(blocks, response.into_body());
 
-        (this.stream_with_reader(&range.bytes_range, reader), this)
+        Ok((this.stream_with_reader(&range.bytes_range, reader)?, this))
     }
 
     /// Create a new response which streams body data from the given request range.
     /// If the request range is invalid, it is clipped to the underlying size of the body.
-    pub fn stream(&self, range: &RequestRange) -> R {
+    pub fn stream(&self, range: &RequestRange) -> Result<R> {
         let blocks = self.blocks.clone();
         let requester = self.requester.clone();
 
@@ -50,7 +50,7 @@ where
     }
 
     /// Create a new response from the template data given a range and a reader.
-    fn stream_with_reader(&self, range: &RequestRange, reader: AdaptiveReader<R>) -> R {
+    fn stream_with_reader(&self, range: &RequestRange, reader: AdaptiveReader<R>) -> Result<R> {
         let (start, end) = get_start_and_end(self.size, range);
 
         let range = ResponseRange {

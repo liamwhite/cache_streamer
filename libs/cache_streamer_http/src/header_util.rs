@@ -3,7 +3,7 @@ use headers::{
     HeaderMapExt,
 };
 
-/// Take headers which will be preserved during passthrough requests.
+/// Take headers which will be preserved during requests.
 /// Currently, this list of headers is:
 ///    - `cache-control`
 ///    - `content-disposition`

@@ -1,5 +1,5 @@
 use crate::render;
-use cache_streamer_lib::types::{BodyStream, Response, ResponseRange};
+use cache_streamer_lib::types::*;
 use chrono::{DateTime, Utc};
 use headers::HeaderMap;
 use http::StatusCode;
@@ -48,10 +48,17 @@ impl Response for HTTPResponse {
     type Timepoint = DateTime<Utc>;
     type Data = (StatusCode, HeaderMap);
 
-    fn from_parts((status, headers): Self::Data, range: ResponseRange, body: BodyStream) -> Self {
-        let headers = render::put_response_range(headers, range);
+    fn from_parts(
+        (status, headers): Self::Data,
+        range: ResponseRange,
+        body: BodyStream,
+    ) -> Result<Self> {
+        let headers = match render::put_response_range(headers, range) {
+            None => return Err("invalid response range".into()),
+            Some(headers) => headers,
+        };
 
-        Self::new(status, headers, body)
+        Ok(Self::new(status, headers, body))
     }
 
     fn into_body(self) -> BodyStream {

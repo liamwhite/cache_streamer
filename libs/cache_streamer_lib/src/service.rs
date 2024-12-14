@@ -43,7 +43,7 @@ where
         // This is fine, because our response will fetch unfinished bytes and continue
         // to feed the stream.
         if let Some(item) = self.cache.lock().get(time, key) {
-            return Ok(ServiceStatus::Cache(item.stream(range)));
+            return Ok(ServiceStatus::Cache(item.stream(range)?));
         }
 
         // The item was not in the cache, so make a request.
@@ -61,7 +61,7 @@ where
 
         // The response builder will return a stream here built from the current response,
         // avoiding the need to make a second request.
-        let (stream, item) = ResponseBuilder::new(response, &range, data, requester);
+        let (stream, item) = ResponseBuilder::new(response, &range, data, requester)?;
 
         // Insert the new builder into the cache.
         let entry = Entry::from_parts(range.bytes_len, expire_time, item);

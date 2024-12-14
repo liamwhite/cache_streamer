@@ -27,8 +27,8 @@ impl Response for SimpleResponse {
     type Data = ();
     type Timepoint = usize;
 
-    fn from_parts(_data: Self::Data, _range: ResponseRange, body: BodyStream) -> Self {
-        Self(body)
+    fn from_parts(_data: Self::Data, _range: ResponseRange, body: BodyStream) -> Result<Self> {
+        Ok(Self(body))
     }
 
     fn into_body(self) -> BodyStream {
@@ -91,7 +91,7 @@ impl SimpleRequestBackend {
 }
 
 impl RequestBackend<String, SimpleResponse> for SimpleRequestBackend {
-    fn create_for_key(&self, _key: String) -> Arc<dyn Requester<SimpleResponse>> {
+    fn create_for_key(&self, _key: &String) -> Arc<dyn Requester<SimpleResponse>> {
         Arc::new(SimpleRequester::new(self.count.clone(), self.is_cache))
     }
 }

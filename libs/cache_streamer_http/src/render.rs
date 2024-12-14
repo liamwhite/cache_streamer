@@ -6,21 +6,22 @@ use range_header::ByteRangeBuilder;
 ///
 /// If the range is [`RequestRange::None`], no headers are added. Otherwise, the appropriate
 /// `range` header will be added.
-pub fn request_range_headers(range: &RequestRange) -> HeaderMap {
+///
+/// [`None`] will be returned only if the range cannot be converted.
+pub fn request_range_headers(range: &RequestRange) -> Option<HeaderMap> {
     let mut headers = HeaderMap::new();
     let builder = ByteRangeBuilder::new();
     let builder = match range {
         RequestRange::None => Ok(builder),
-        RequestRange::AllFrom(start) => builder.range(*start as u64..),
-        RequestRange::FromTo(start, end) => builder.range((*start as u64)..(*end as u64)),
-        RequestRange::Last(size) => builder.suffix(*size as u64),
+        RequestRange::AllFrom(start) => builder.range(l(*start)?..),
+        RequestRange::FromTo(start, end) => builder.range(l(*start)?..l(*end)?.checked_sub(1)?),
+        RequestRange::Last(size) => builder.suffix(l(*size)?),
     };
 
-    if let Ok(h) = builder.and_then(|b| b.finish()) {
-        headers.typed_insert(h);
-    }
+    let header = builder.ok()?.finish().ok()?;
+    headers.typed_insert(header);
 
-    headers
+    Some(headers)
 }
 
 /// Adds the appropriate HTTP `content-length` and `content-range` headers from
@@ -32,7 +33,9 @@ pub fn request_range_headers(range: &RequestRange) -> HeaderMap {
 /// Otherwise, the `content-length` header will be set to the length of the returned
 /// range, and the `content-range` header will be set to include the returned range as
 /// well as the complete length.
-pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> HeaderMap {
+///
+/// [`None`] will be returned only if the range cannot be converted.
+pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> Option<HeaderMap> {
     match range.bytes_range {
         RequestRange::None => put_content_length(headers, range.bytes_len),
         RequestRange::AllFrom(start) => {
@@ -48,27 +51,33 @@ pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> HeaderMap
 }
 
 /// Adds the HTTP `content-length` header to the given [`HeaderMap`].
-fn put_content_length(mut headers: HeaderMap, length: usize) -> HeaderMap {
-    headers.typed_insert(ContentLength(length as u64));
-    headers
+///
+/// Returns [`None`] if the conversion fails.
+fn put_content_length(mut headers: HeaderMap, length: usize) -> Option<HeaderMap> {
+    headers.typed_insert(ContentLength(l(length)?));
+    Some(headers)
 }
 
 /// Adds the HTTP `content-length` and `content-range` headers to the given [`HeaderMap`].
+///
+/// Returns [`None`] if the conversion fails.
 fn put_content_range(
     headers: HeaderMap,
     range: core::ops::Range<usize>,
     complete_length: usize,
-) -> HeaderMap {
-    let content_length = range.len();
-    let mut headers = put_content_length(headers, content_length);
+) -> Option<HeaderMap> {
+    let mut headers = put_content_length(headers, range.len())?;
 
     headers.typed_insert(
-        ContentRange::bytes(
-            (range.start as u64)..(range.end as u64),
-            complete_length as u64,
-        )
-        .expect("content range"),
+        ContentRange::bytes(l(range.start)?..l(range.end)?, l(complete_length)?).ok()?,
     );
 
-    headers
+    Some(headers)
+}
+
+/// Fallibly convert a `usize` length to a `u64` length with a very short method name.
+///
+/// The `l` stands for length.
+fn l(x: usize) -> Option<u64> {
+    x.try_into().ok()
 }

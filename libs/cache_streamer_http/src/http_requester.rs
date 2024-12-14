@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use cache_streamer_lib::types::*;
-use futures::StreamExt;
+use futures::{future, StreamExt};
 use reqwest::{Client, Response as ReqwestResponse, Url};
 
 use crate::http_response::HTTPResponse;
@@ -39,19 +39,21 @@ impl Requester<HTTPResponse> for HTTPRequester {
         &self,
         range: &RequestRange,
     ) -> Pin<Box<dyn Future<Output = Result<RequesterStatus<HTTPResponse>>> + Send + Sync>> {
-        let range = range.clone();
         let limit = self.cache_limit;
-        let req = self
-            .client
-            .get(self.url.clone())
-            .headers(render::request_range_headers(&range))
-            .send();
+
+        let range = range.clone();
+        let headers = match render::request_range_headers(&range) {
+            Some(headers) => headers,
+            None => return Box::pin(future::ready(Err("invalid request range".into()))),
+        };
+
+        let req = self.client.get(self.url.clone()).headers(headers).send();
 
         Box::pin(async move {
             // Convert to response here to avoid unnecessarily tying lifetime to `self`
             req.await
-                .map(|r| into_requester_status(r, range, limit))
                 .map_err(|e| e.into())
+                .and_then(|r| into_requester_status(r, range, limit))
         })
     }
 }
@@ -70,7 +72,7 @@ fn into_requester_status(
     response: ReqwestResponse,
     request_range: RequestRange,
     cache_limit: usize,
-) -> RequesterStatus<HTTPResponse> {
+) -> Result<RequesterStatus<HTTPResponse>> {
     let status = response.status();
     let input_headers = response.headers();
 
@@ -91,7 +93,11 @@ fn into_requester_status(
 
     // Check all preconditions.
     if !status.is_success() || !cacheable_total_size || !cache {
-        return RequesterStatus::Passthrough(HTTPResponse::new(status, output_headers, body));
+        return Ok(RequesterStatus::Passthrough(HTTPResponse::new(
+            status,
+            output_headers,
+            body,
+        )));
     }
 
     // At this point we know the request can be cached and has a valid response range.
@@ -104,10 +110,10 @@ fn into_requester_status(
         body,
     );
 
-    RequesterStatus::Cache(
-        output_response,
+    Ok(RequesterStatus::Cache(
+        output_response?,
         response_range,
         expire_time,
         (status, output_headers),
-    )
+    ))
 }

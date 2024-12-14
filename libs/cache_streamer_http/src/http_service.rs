@@ -19,10 +19,10 @@ pub struct HTTPService {
 impl HTTPService {
     /// Builds a new [`HTTPService`].
     ///
-    /// `cache_capacity` is the total size of the cache, such as 2GiB.
+    /// `cache_capacity` is the total size of the cache, such as 32GiB.
     ///
-    /// The maximum size of individual cacheable responses can be tuned in the backend
-    /// parameter.
+    /// The maximum size of individual cacheable responses can be tuned when constructing
+    /// the `backend` parameter.
     pub fn new(backend: HTTPRequestBackend, cache_capacity: usize) -> Self {
         let backend = Arc::new(backend);
         let service = Service::new(backend, cache_capacity);
