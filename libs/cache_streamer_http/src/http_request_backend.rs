@@ -7,6 +7,9 @@ use reqwest::{Client, Url};
 use crate::http_requester::HTTPRequester;
 use crate::http_response::HTTPResponse;
 
+/// [`RequestBackend`] trait implementation for HTTP.
+///
+/// Creates HTTP [`Requester`] objects which fetch paths via [`reqwest`].
 pub struct HTTPRequestBackend {
     client: Arc<Client>,
     base_url: Url,
@@ -14,6 +17,13 @@ pub struct HTTPRequestBackend {
 }
 
 impl HTTPRequestBackend {
+    /// Create a new [`HTTPRequestBackend`].
+    ///
+    /// `base_url` fixes the scheme, host and port.
+    /// The request path is controlled by the key set in [`RequestBackend::create_for_key`].
+    ///
+    /// `cache_limit` controls the maximum length of responses able to be cached. Responses
+    /// above this length will be passed through instead.
     pub fn new(base_url: Url, cache_limit: usize) -> Self {
         let client = Client::builder()
             .redirect(reqwest::redirect::Policy::limited(1))

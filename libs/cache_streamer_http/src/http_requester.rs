@@ -9,6 +9,9 @@ use reqwest::{Client, Response as ReqwestResponse, Url};
 use crate::http_response::HTTPResponse;
 use crate::{header_util, parse, render};
 
+/// [`Requester`] trait implementation for HTTP.
+///
+/// Makes HTTP requests against a fixed [`Url`] via [`reqwest`].
 pub struct HTTPRequester {
     client: Arc<Client>,
     url: Url,
@@ -16,6 +19,12 @@ pub struct HTTPRequester {
 }
 
 impl HTTPRequester {
+    /// Builds a new [`HTTPRequester`] using the shared [`Client`].
+    ///
+    /// `url` will be used without changes to make all requests.
+    ///
+    /// A response will switch to [`RequesterStatus::Passthrough`] if the response
+    /// would have otherwise been cached, but the length is more than `cache_limit`.
     pub fn new(client: Arc<Client>, url: Url, cache_limit: usize) -> Self {
         Self {
             client,
@@ -41,13 +50,23 @@ impl Requester<HTTPResponse> for HTTPRequester {
         Box::pin(async move {
             // Convert to response here to avoid unnecessarily tying lifetime to `self`
             req.await
-                .map(|r| into_response_type(r, range, limit))
+                .map(|r| into_requester_status(r, range, limit))
                 .map_err(|e| e.into())
         })
     }
 }
 
-fn into_response_type(
+/// Convert the response from [`reqwest`] into a suitable [`HTTPResponse`].
+///
+/// The following conditions are required to ensure that the output status
+/// is [`RequesterStatus::Cache`]:
+/// * Response status is success (2xx)
+/// * Response range corresponds to request range
+/// * Response total length is less than `cache_limit`
+/// * Response `cache-control` header does not disallow caching
+///
+/// Otherwise, [`RequesterStatus::Passthrough`] will be returned.
+fn into_requester_status(
     response: ReqwestResponse,
     request_range: RequestRange,
     cache_limit: usize,

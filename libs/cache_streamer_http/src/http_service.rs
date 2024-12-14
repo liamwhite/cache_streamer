@@ -17,6 +17,12 @@ pub struct HTTPService {
 }
 
 impl HTTPService {
+    /// Builds a new [`HTTPService`].
+    ///
+    /// `cache_capacity` is the total size of the cache, such as 2GiB.
+    ///
+    /// The maximum size of individual cacheable responses can be tuned in the backend
+    /// parameter.
     pub fn new(backend: HTTPRequestBackend, cache_capacity: usize) -> Self {
         let backend = Arc::new(backend);
         let service = Service::new(backend, cache_capacity);
@@ -67,9 +73,9 @@ fn synthesize_response(status: StatusCode, method: &Method) -> HTTPResponse {
 /// or return a HTTP [`StatusCode`] indicating an error in processing.
 ///
 /// Currently, the error status which will be returned are:
-///    * [`StatusCode::METHOD_NOT_ALLOWED`] when the method is not GET or HEAD
-///    * [`StatusCode::RANGE_NOT_SATISFIABLE`] when there is an issue with the input range
-///    * [`StatusCode::INTERNAL_SERVER_ERROR`] when connecting to the upstream server returns an error
+/// * [`StatusCode::METHOD_NOT_ALLOWED`] when the method is not HTTP `GET` or `HEAD`
+/// * [`StatusCode::RANGE_NOT_SATISFIABLE`] when there is an issue with the input range
+/// * [`StatusCode::INTERNAL_SERVER_ERROR`] when connecting to the upstream server returns an error
 async fn fetch_into_status(
     service: &Service<String, HTTPResponse>,
     method: &Method,
@@ -81,7 +87,7 @@ async fn fetch_into_status(
         return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
 
-    let range = get_request_range(headers)?;
+    let range = get_request_range(headers).ok_or(StatusCode::RANGE_NOT_SATISFIABLE)?;
 
     // Fetch current time as close as possible to the service call.
     let timepoint = Utc::now();
