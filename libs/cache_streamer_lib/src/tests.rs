@@ -51,13 +51,13 @@ impl Requester<SimpleResponse> for SimpleRequester {
     fn fetch(
         &self,
         range: &RequestRange,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<SimpleResponse>>> + Send + Sync>> {
+    ) -> Pin<Box<dyn Future<Output = Result<RequesterStatus<SimpleResponse>>> + Send + Sync>> {
         self.count.fetch_add(1, Ordering::Relaxed);
 
         let resp = SimpleResponse::new();
 
         Box::pin(future::ready(Ok(if self.is_cache {
-            ResponseType::Cache(
+            RequesterStatus::Cache(
                 resp,
                 ResponseRange {
                     bytes_len: GOODBYE.len(),
@@ -67,7 +67,7 @@ impl Requester<SimpleResponse> for SimpleRequester {
                 (),
             )
         } else {
-            ResponseType::Passthrough(resp)
+            RequesterStatus::Passthrough(resp)
         })))
     }
 }

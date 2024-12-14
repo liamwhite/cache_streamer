@@ -28,7 +28,12 @@ where
     }
 
     /// Get a response with the given current time, request key, and request range.
-    pub async fn call(&self, time: &R::Timepoint, key: K, range: &RequestRange) -> Result<R>
+    pub async fn call(
+        &self,
+        time: &R::Timepoint,
+        key: K,
+        range: &RequestRange,
+    ) -> Result<ServiceStatus<R>>
     where
         K: ToOwned<Owned = K>,
     {
@@ -38,7 +43,7 @@ where
         // This is fine, because our response will fetch unfinished bytes and continue
         // to feed the stream.
         if let Some(item) = self.cache.lock().get(time, &key) {
-            return Ok(item.stream(range));
+            return Ok(ServiceStatus::Cache(item.stream(range)));
         }
 
         // The item was not in the cache, so make a request.
@@ -48,10 +53,10 @@ where
         // some form of valid response range. Without this, we can't support suffix queries
         // correctly.
         let (response, range, expire_time, data) = match requester.fetch(range).await? {
-            ResponseType::Cache(response, range, expire_time, data) => {
+            RequesterStatus::Cache(response, range, expire_time, data) => {
                 (response, range, expire_time, data)
             }
-            ResponseType::Passthrough(r) => return Ok(r),
+            RequesterStatus::Passthrough(r) => return Ok(ServiceStatus::Passthrough(r)),
         };
 
         // The response builder will return a stream here built from the current response,
@@ -62,6 +67,6 @@ where
         let entry = Entry::from_parts(range.bytes_len, expire_time, item);
         self.cache.lock().get_or_insert(time, &key, entry);
 
-        Ok(stream)
+        Ok(ServiceStatus::Cache(stream))
     }
 }

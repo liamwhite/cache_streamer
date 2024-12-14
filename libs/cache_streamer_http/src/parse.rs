@@ -32,9 +32,9 @@ pub fn get_request_range(headers: &HeaderMap) -> Result<RequestRange, StatusCode
 }
 
 /// Converts HTTP `Content-Length` and `Content-Range` into a [`ResponseRange`].
-pub fn get_response_range(
+pub fn into_response_range(
     response_headers: &HeaderMap,
-    request_range: RequestRange,
+    request_range: &RequestRange,
 ) -> Option<ResponseRange> {
     let has_request_range = !matches!(request_range, RequestRange::None);
 

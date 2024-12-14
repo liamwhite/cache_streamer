@@ -13,7 +13,8 @@ async fn test_response_builder() {
     let request_count = Arc::new(AtomicUsize::default());
     let requester = Arc::new(SimpleRequester::new(request_count.clone(), true));
     let range = RequestRange::default();
-    let ResponseType::Cache(resp, range, _, data) = requester.fetch(&range).await.unwrap() else {
+    let RequesterStatus::Cache(resp, range, _, data) = requester.fetch(&range).await.unwrap()
+    else {
         panic!()
     };
     let (resp, builder) = ResponseBuilder::new(resp, &range, data, requester);

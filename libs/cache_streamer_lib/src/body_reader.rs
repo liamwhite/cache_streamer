@@ -109,8 +109,8 @@ where
     R: Response,
 {
     let result = match requester.fetch(range).await? {
-        ResponseType::Cache(r, ..) => r,
-        ResponseType::Passthrough(..) => return Err("invalid upstream status".into()),
+        RequesterStatus::Cache(r, ..) => r,
+        RequesterStatus::Passthrough(..) => return Err("invalid upstream status".into()),
     };
 
     Ok(TeeBodyReader::new(blocks, result.into_body()))

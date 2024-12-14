@@ -51,14 +51,15 @@ pub trait Response: 'static {
     type Data: Clone;
 
     /// Construct a new response from its constituent parts.
-    fn from_parts(data: Self::Data, range: Option<ResponseRange>, body: BodyStream) -> Self;
+    fn from_parts(data: Self::Data, range: ResponseRange, body: BodyStream) -> Self;
 
     /// Consume the response into its streaming body.
     fn into_body(self) -> BodyStream;
 }
 
-/// Response variant for [`Requester`], indicating the cacheability of the response.
-pub enum ResponseType<R: Response> {
+/// Response variant for [`Requester`], indicating the cacheability of the response
+/// from the requester.
+pub enum RequesterStatus<R: Response> {
     /// Cache this response with the given output range, cache expire time, and
     /// associated cache data. If the expire time is [`None`], it will never be
     /// revalidated.
@@ -73,13 +74,23 @@ pub enum ResponseType<R: Response> {
     Passthrough(R),
 }
 
+/// Response variant for services, indicating whether the response from the service
+/// was served from cache or passed through.
+pub enum ServiceStatus<R: Response> {
+    /// The response was served from cache.
+    Cache(R),
+
+    /// The response was passed through.
+    Passthrough(R),
+}
+
 /// The type of a request which can be repeated with different ranges.
 pub trait Requester<R: Response>: Send + Sync + 'static {
     /// Fetch a new copy of the response with the given range.
     fn fetch(
         &self,
         range: &RequestRange,
-    ) -> Pin<Box<dyn Future<Output = Result<ResponseType<R>>> + Send + Sync>>;
+    ) -> Pin<Box<dyn Future<Output = Result<RequesterStatus<R>>> + Send + Sync>>;
 }
 
 /// The type of a factory for requesters. Given a key, it will create

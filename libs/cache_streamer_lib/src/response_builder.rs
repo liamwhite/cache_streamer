@@ -60,7 +60,7 @@ where
 
         R::from_parts(
             self.data.clone(),
-            Some(range),
+            range,
             Box::pin(reader.into_stream(start, end)),
         )
     }

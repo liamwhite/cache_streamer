@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use cache_streamer_lib::types::{RequestRange, Response};
+use cache_streamer_lib::types::{RequestRange, ServiceStatus};
 use cache_streamer_lib::Service;
 use chrono::Utc;
 use futures::stream;
@@ -17,9 +17,10 @@ pub struct HTTPService {
 
 impl HTTPService {
     pub fn new(backend: HTTPRequestBackend, cache_capacity: usize) -> Self {
-        Self {
-            service: Service::new(Arc::new(backend), cache_capacity),
-        }
+        let backend = Arc::new(backend);
+        let service = Service::new(backend, cache_capacity);
+
+        Self { service }
     }
 
     pub async fn call(
@@ -29,50 +30,42 @@ impl HTTPService {
         headers: &HeaderMap,
     ) -> Result<HTTPResponse, StatusCode> {
         // We can't handle methods other than GET or HEAD.
-        match *method {
-            Method::GET | Method::HEAD => {}
-            _ => return Err(StatusCode::METHOD_NOT_ALLOWED),
-        };
+        if !matches!(*method, Method::GET | Method::HEAD) {
+            return Err(StatusCode::METHOD_NOT_ALLOWED);
+        }
 
         let range = get_request_range(headers)?;
 
         // Fetch current time as close as possible to the service call.
         let timepoint = Utc::now();
-        let (status, headers, body) = self
+
+        // Map errors in the service call to HTTP 500.
+        let service_status = self
             .service
             .call(&timepoint, key, &range)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            .into_parts();
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        // Return immediately on error status.
-        // TODO we don't actually know that this is an error
-        if !status.is_success() {
-            return Ok(HTTPResponse::from_parts((status, headers), None, body));
-        }
+        // Return and don't post-process passed-through responses.
+        let mut response = match service_status {
+            ServiceStatus::Cache(r) => r,
+            ServiceStatus::Passthrough(r) => return Ok(r),
+        };
 
-        // Figure out what code we want to return with.
-        //
         // Handling the 204 No Content case is not required.
         // However, we must handle 206 Partial Content.
-        let status = if matches!(range, RequestRange::None) {
-            StatusCode::OK
+        if matches!(range, RequestRange::None) {
+            response.set_status(StatusCode::OK);
         } else {
-            StatusCode::PARTIAL_CONTENT
+            response.set_status(StatusCode::PARTIAL_CONTENT);
         };
 
         // Remove the body from HEAD requests.
-        match *method {
-            Method::HEAD => {
-                let body = stream::once(async { Ok(Bytes::new()) });
-
-                Ok(HTTPResponse::from_parts(
-                    (status, headers),
-                    None,
-                    Box::pin(body),
-                ))
-            }
-            _ => Ok(HTTPResponse::from_parts((status, headers), None, body)),
+        if matches!(*method, Method::HEAD) {
+            let body = Box::pin(stream::once(async { Ok(Bytes::new()) }));
+            response.set_body(body);
         }
+
+        Ok(response)
     }
 }
