@@ -31,7 +31,7 @@ where
     pub async fn call(
         &self,
         time: &R::Timepoint,
-        key: K,
+        key: &K,
         range: &RequestRange,
     ) -> Result<ServiceStatus<R>>
     where
@@ -42,12 +42,12 @@ where
         // The cache may also contain partial items which have not finished streaming yet.
         // This is fine, because our response will fetch unfinished bytes and continue
         // to feed the stream.
-        if let Some(item) = self.cache.lock().get(time, &key) {
+        if let Some(item) = self.cache.lock().get(time, key) {
             return Ok(ServiceStatus::Cache(item.stream(range)));
         }
 
         // The item was not in the cache, so make a request.
-        let requester = self.backend.create_for_key(key.to_owned());
+        let requester = self.backend.create_for_key(key);
 
         // Even if the request is potentially cacheable, we only cache requests that return
         // some form of valid response range. Without this, we can't support suffix queries
@@ -65,7 +65,7 @@ where
 
         // Insert the new builder into the cache.
         let entry = Entry::from_parts(range.bytes_len, expire_time, item);
-        self.cache.lock().get_or_insert(time, &key, entry);
+        self.cache.lock().get_or_insert(time, key, entry);
 
         Ok(ServiceStatus::Cache(stream))
     }

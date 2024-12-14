@@ -97,5 +97,5 @@ pub trait Requester<R: Response>: Send + Sync + 'static {
 /// a new requester specific to the key.
 pub trait RequestBackend<K, R: Response>: Send + Sync + 'static {
     /// Create a new [`Requester`] that fetches requests for this key.
-    fn create_for_key(&self, key: K) -> Arc<dyn Requester<R>>;
+    fn create_for_key(&self, key: &K) -> Arc<dyn Requester<R>>;
 }

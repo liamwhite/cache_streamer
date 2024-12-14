@@ -26,7 +26,7 @@ impl HTTPService {
     pub async fn call(
         &self,
         method: &Method,
-        key: String,
+        key: &String,
         headers: &HeaderMap,
     ) -> Result<HTTPResponse, StatusCode> {
         // We can't handle methods other than GET or HEAD.

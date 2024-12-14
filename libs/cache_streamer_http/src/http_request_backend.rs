@@ -31,12 +31,12 @@ impl HTTPRequestBackend {
 }
 
 impl RequestBackend<String, HTTPResponse> for HTTPRequestBackend {
-    fn create_for_key(&self, key: String) -> Arc<dyn Requester<HTTPResponse>> {
+    fn create_for_key(&self, key: &String) -> Arc<dyn Requester<HTTPResponse>> {
         let cache_limit = self.cache_limit;
         let client = self.client.clone();
 
         let mut url = self.base_url.clone();
-        url.set_path(&key);
+        url.set_path(key);
 
         Arc::new(HTTPRequester::new(client, url, cache_limit))
     }
