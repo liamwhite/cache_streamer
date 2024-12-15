@@ -14,7 +14,7 @@ pub fn request_range_headers(range: &RequestRange) -> Option<HeaderMap> {
     let builder = match range {
         RequestRange::None => return Some(headers),
         RequestRange::AllFrom(start) => builder.range(l(*start)?..),
-        RequestRange::FromTo(start, end) => builder.range(l(*start)?..l(*end)?.checked_sub(1)?),
+        RequestRange::FromTo(start, end) => builder.range(l(*start)?..l(*end)?),
         RequestRange::Last(size) => builder.suffix(l(*size)?),
     };
 
@@ -43,7 +43,7 @@ pub fn put_response_range(headers: HeaderMap, range: ResponseRange) -> Option<He
         }
         RequestRange::Last(size) => put_content_range(
             headers,
-            (range.bytes_len - size)..range.bytes_len,
+            range.bytes_len.checked_sub(size)?..range.bytes_len,
             range.bytes_len,
         ),
         RequestRange::FromTo(start, end) => put_content_range(headers, start..end, range.bytes_len),

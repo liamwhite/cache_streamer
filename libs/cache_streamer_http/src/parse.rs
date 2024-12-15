@@ -86,7 +86,7 @@ pub fn into_response_range(
 
     Some(ResponseRange {
         bytes_len: l(bytes_len)?,
-        bytes_range: RequestRange::FromTo(l(bytes_range.0)?, l(bytes_range.1)?),
+        bytes_range: RequestRange::FromTo(l(bytes_range.0)?, l(bytes_range.1)?.checked_add(1)?),
     })
 }
 
