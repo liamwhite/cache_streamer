@@ -10,7 +10,7 @@ fn main() {
         env::set_var("RUST_LOG", "info")
     }
 
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     server::run(&Config::parse());
 }
