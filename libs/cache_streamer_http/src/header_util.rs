@@ -5,11 +5,11 @@ use headers::{
 
 /// Take headers which will be preserved during requests.
 /// Currently, this list of headers is:
-///    - `cache-control`
-///    - `content-disposition`
-///    - `content-length`
-///    - `content-range`
-///    - `content-type`
+/// - `cache-control`
+/// - `content-disposition`
+/// - `content-length`
+/// - `content-range`
+/// - `content-type`
 pub fn collect_headers(response_headers: &HeaderMap) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
