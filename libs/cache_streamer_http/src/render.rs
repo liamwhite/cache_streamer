@@ -12,7 +12,7 @@ pub fn request_range_headers(range: &RequestRange) -> Option<HeaderMap> {
     let mut headers = HeaderMap::new();
     let builder = ByteRangeBuilder::new();
     let builder = match range {
-        RequestRange::None => Ok(builder),
+        RequestRange::None => return Some(headers),
         RequestRange::AllFrom(start) => builder.range(l(*start)?..),
         RequestRange::FromTo(start, end) => builder.range(l(*start)?..l(*end)?.checked_sub(1)?),
         RequestRange::Last(size) => builder.suffix(l(*size)?),
