@@ -19,7 +19,7 @@ const UNIT_MIB: usize = 1 << 20;
 pub async fn run(config: &Config) {
     let base_url = config.url.parse::<Url>().unwrap();
     let backend = HTTPRequestBackend::new(base_url, config.limit * UNIT_MIB);
-    let service = HTTPService::new(backend, config.capacity * UNIT_MIB);
+    let service = HTTPService::new(Arc::new(backend), config.capacity * UNIT_MIB);
 
     let app = Router::new()
         .route("/", get(root).head(root))

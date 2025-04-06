@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use cache_streamer_lib::types::{BodyStream, RequestRange, ServiceStatus};
+use cache_streamer_lib::types::{BodyStream, RequestBackend, RequestRange, ServiceStatus};
 use cache_streamer_lib::Service;
 use chrono::Utc;
 use futures::stream;
 use http::{HeaderMap, Method, StatusCode};
 
-use crate::http_request_backend::HTTPRequestBackend;
 use crate::http_response::HTTPResponse;
 use crate::parse::get_request_range;
 
@@ -21,10 +20,12 @@ impl HTTPService {
     ///
     /// `cache_capacity` is the total size of the cache, such as 32GiB.
     ///
-    /// The maximum size of individual cacheable responses can be tuned when constructing
-    /// the `backend` parameter.
-    pub fn new(backend: HTTPRequestBackend, cache_capacity: usize) -> Self {
-        let backend = Arc::new(backend);
+    /// The maximum size of individual cacheable responses can be tuned when the
+    /// the `backend` parameter is a [`HTTPRequestBackend`].
+    pub fn new(
+        backend: Arc<dyn RequestBackend<String, HTTPResponse>>,
+        cache_capacity: usize,
+    ) -> Self {
         let service = Service::new(backend, cache_capacity);
 
         Self { service }
