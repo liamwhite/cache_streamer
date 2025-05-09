@@ -1,10 +1,9 @@
 use core::ops::Range;
-use std::cell::RefCell;
 
 use super::range;
 use super::{ContiguousCollection, HoleTracker};
 use intrusive_collections::intrusive_adapter;
-use intrusive_collections::rbtree::CursorMut;
+use intrusive_collections::rbtree::{Cursor, CursorMut};
 use intrusive_collections::{Bound, KeyAdapter, RBTree, RBTreeAtomicLink};
 
 struct Node<T> {
@@ -51,7 +50,7 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
 /// For simplicity, no merging of adjacent intervals is implemented.
 #[derive(Default)]
 pub struct SparseMap<T> {
-    blocks: RefCell<RBTree<NodeTreeAdapter<T>>>,
+    blocks: RBTree<NodeTreeAdapter<T>>,
 }
 
 impl<T> SparseMap<T>
@@ -68,9 +67,8 @@ where
     /// will be returned.
     pub fn get(&self, offset: usize, max_size: usize) -> Option<T::Slice> {
         let requested_range = offset..(offset + max_size);
-        let blocks = self.blocks.borrow();
 
-        match blocks.upper_bound(Bound::Included(&offset)).get() {
+        match self.blocks.upper_bound(Bound::Included(&offset)).get() {
             Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
                 // Return a view of this block.
                 let start = offset - node.start;
@@ -94,20 +92,17 @@ where
         C: ContiguousCollection<Slice = C>,
         T: From<C>,
     {
-        self.walk_discontinuous_regions(offset, data, |it, offset, data| {
-            it.insert_before(Node::new(offset, data.into()));
+        self.walk_discontinuous_regions_mut(offset, data, |cursor, offset, data| {
+            cursor.insert_before(Node::new(offset, data.into()));
         });
     }
 
     /// Finds the largest discontinuous range which intersects the input range.
-    ///
-    /// If there are any discontinuities within the input range, returns a range consisting of
-    /// the first unmapped offset up to the last unmapped offset. Otherwise, returns [`None`].
     pub fn union_discontinuous_range(&self, range: Range<usize>) -> Option<Range<usize>> {
         let mut out = HoleTracker::default();
 
         self.walk_discontinuous_regions(range.start, range.len(), |_, offset, data| {
-            out.update(offset, offset + data.len());
+            out.update(offset, offset + data);
         });
 
         out.into()
@@ -115,32 +110,55 @@ where
 
     /// Returns the number of indices which are covered by any mapped block.
     pub fn mapped_len(&self) -> usize {
-        self.blocks.borrow().iter().map(|n| n.block.len()).sum()
+        self.blocks.iter().map(|n| n.block.len()).sum()
     }
 
     /// Returns the range of indices which are covered by the sparse map.
     pub fn len(&self) -> usize {
-        let blocks = self.blocks.borrow();
-
-        let start = blocks.front().get().map_or(0, |n| n.start);
-        let end = blocks.back().get().map_or(0, |n| n.start + n.block.len());
+        let start = self.blocks.front().get().map_or(0, |n| n.start);
+        let end = self
+            .blocks
+            .back()
+            .get()
+            .map_or(0, |n| n.start + n.block.len());
 
         end - start
     }
 
     /// Returns whether the sparse map covers any indices.
     pub fn is_empty(&self) -> bool {
-        self.blocks.borrow().is_empty()
+        self.blocks.is_empty()
     }
 
-    fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
-    where
+    // NB: the following two methods are identical but differ only in mutability.
+
+    fn walk_discontinuous_regions_mut<C, F>(
+        &mut self,
+        mut offset: usize,
+        mut data: C,
+        mut on_hole: F,
+    ) where
         C: ContiguousCollection<Slice = C>,
         F: FnMut(&mut CursorMut<'_, NodeTreeAdapter<T>>, usize, C),
     {
-        let mut blocks = self.blocks.borrow_mut();
-        let mut it: CursorMut<'_, NodeTreeAdapter<T>> =
-            blocks.upper_bound_mut(Bound::Included(&offset));
+        let mut it = self.blocks.upper_bound_mut(Bound::Included(&offset));
+        let requested_range = offset..(offset + data.len());
+
+        // Special case for block before first.
+        match it.get() {
+            Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
+                // We are already inside this block, so skip it.
+                let data_advance = data.len().min(node.block.len() - (offset - node.start));
+                data = data.slice(data_advance..data.len());
+                offset += data_advance;
+            }
+            _ => {
+                // Block before first, if extant, does not intersect.
+            }
+        }
+
+        // Reposition to exclusive lower bound. (Inclusive case is handled above.)
+        it.move_next();
 
         while !data.is_empty() {
             let requested_range = offset..(offset + data.len());
@@ -161,10 +179,60 @@ where
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
-                    if !it.is_null() {
-                        it.move_next();
-                    }
+                    on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
 
+                    break;
+                }
+            };
+
+            data = data.slice(data_advance..data.len());
+            offset += data_advance;
+        }
+    }
+
+    fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
+    where
+        C: ContiguousCollection<Slice = C>,
+        F: FnMut(&mut Cursor<'_, NodeTreeAdapter<T>>, usize, C),
+    {
+        let mut it = self.blocks.upper_bound(Bound::Included(&offset));
+        let requested_range = offset..(offset + data.len());
+
+        // Special case for block before first.
+        match it.get() {
+            Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
+                // We are already inside this block, so skip it.
+                let data_advance = data.len().min(node.block.len() - (offset - node.start));
+                data = data.slice(data_advance..data.len());
+                offset += data_advance;
+            }
+            _ => {
+                // Block before first, if extant, does not intersect.
+            }
+        }
+
+        // Reposition to exclusive lower bound. (Inclusive case is handled above.)
+        it.move_next();
+
+        while !data.is_empty() {
+            let requested_range = offset..(offset + data.len());
+            let data_advance = match it.get() {
+                Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
+                    // We are already inside this block, so skip it.
+                    let data_advance = data.len().min(node.block.len() - (offset - node.start));
+                    it.move_next();
+
+                    data_advance
+                }
+                Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
+                    // We intersect a block at a higher start, but there is a hole here.
+                    let data_advance = data.len().min(node.start - offset);
+                    on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
+
+                    data_advance
+                }
+                _ => {
+                    // No intersections. If the next block exists, it is higher.
                     on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
 
                     break;
@@ -180,6 +248,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
 
     #[test]
     fn test_put_get_boundary_conditions() {
@@ -202,8 +271,12 @@ mod tests {
         map.put_new(0, 1024);
         assert_eq!(map.get(0, 1024), Some(1024));
 
+        map.put_new(0, 1024);
+        assert_eq!(map.get(0, 1024), Some(1024));
+
         map.put_new(1024, 1024);
         assert_eq!(map.get(0, 1024), Some(1024));
+        assert_eq!(map.get(1024, 1024), Some(1024));
     }
 
     #[test]
@@ -215,7 +288,9 @@ mod tests {
 
         map.put_new(1024 - 64, 1024);
         assert_eq!(map.get(0, 1024), Some(1024));
+        assert_eq!(map.get(1024 - 64, 64), Some(64));
         assert_eq!(map.get(1024, 1024), Some(1024 - 64));
+        assert_eq!(map.get(1024, 960), Some(960));
     }
 
     #[test]
@@ -248,7 +323,111 @@ mod tests {
         assert_eq!(map.mapped_len(), 2048);
 
         map.put_new(4096, 1024);
-        assert_eq!(map.len(), 4096 + 1024);
-        assert_eq!(map.mapped_len(), 2048 + 1024);
+        assert_eq!(map.len(), 5120);
+        assert_eq!(map.mapped_len(), 1024 + 1024 + 1024);
+    }
+
+    #[test]
+    fn test_put_new_spanning_multiple_holes_and_blocks() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(100, 100);
+        map.put_new(300, 100);
+        map.put_new(0, 500);
+
+        assert_eq!(map.get(0, 100), Some(100));
+        assert_eq!(map.get(50, 50), Some(50));
+        assert_eq!(map.get(100, 100), Some(100));
+        assert_eq!(map.get(150, 50), Some(50));
+        assert_eq!(map.get(200, 100), Some(100));
+        assert_eq!(map.get(250, 50), Some(50));
+        assert_eq!(map.get(300, 100), Some(100));
+        assert_eq!(map.get(350, 50), Some(50));
+        assert_eq!(map.get(400, 100), Some(100));
+        assert_eq!(map.get(450, 50), Some(50));
+        assert_eq!(map.get(500, 100), None);
+        assert_eq!(map.mapped_len(), 500);
+        assert_eq!(map.len(), 500);
+    }
+
+    #[test]
+    fn test_put_new_partially_overlapping_existing_data() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(100, 100);
+        map.put_new(300, 100);
+        map.put_new(50, 300);
+
+        assert_eq!(map.get(50, 50), Some(50));
+        assert_eq!(map.get(100, 100), Some(100));
+        assert_eq!(map.get(200, 100), Some(100));
+        assert_eq!(map.get(300, 100), Some(100));
+        assert_eq!(map.get(300, 50), Some(50));
+        assert_eq!(map.get(350, 50), Some(50));
+        assert_eq!(map.mapped_len(), 350);
+
+        let mut blocks_found = Vec::new();
+        for node in map.blocks.iter() {
+            blocks_found.push(node.range());
+        }
+        assert_eq!(blocks_found, vec![50..100, 100..200, 200..300, 300..400,]);
+    }
+
+    #[test]
+    fn test_put_new_bytes_spanning_multiple_holes() {
+        let mut map = SparseMap::<Bytes>::default();
+        map.put_new(100, Bytes::from_static(&[1; 50]));
+        map.put_new(200, Bytes::from_static(&[2; 50]));
+
+        let input_data = Bytes::from(vec![3u8; 175]);
+        map.put_new(50, input_data);
+
+        assert_eq!(map.get(50, 50), Some(Bytes::from_static(&[3; 50])));
+        assert_eq!(map.get(100, 50), Some(Bytes::from_static(&[1; 50])));
+        assert_eq!(map.get(150, 50), Some(Bytes::from_static(&[3; 50])));
+        assert_eq!(map.get(200, 50), Some(Bytes::from_static(&[2; 50])));
+        assert_eq!(map.get(200, 25), Some(Bytes::from_static(&[2; 25])));
+        assert_eq!(map.get(250, 50), None);
+        assert_eq!(map.mapped_len(), 50 + 50 + 50 + 50);
+
+        let mut blocks_found = Vec::new();
+        for node in map.blocks.iter() {
+            blocks_found.push(node.range());
+        }
+        assert_eq!(blocks_found, vec![50..100, 100..150, 150..200, 200..250,]);
+    }
+
+    #[test]
+    fn test_put_new_into_empty_map() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(100, 200);
+        assert_eq!(map.get(100, 200), Some(200));
+        assert_eq!(map.get(0, 100), None);
+        assert_eq!(map.get(300, 100), None);
+        assert_eq!(map.mapped_len(), 200);
+    }
+
+    #[test]
+    fn test_put_new_at_end_of_map_creating_trailing_hole() {
+        let mut map = SparseMap::<usize>::default();
+        map.put_new(0, 100);
+        map.put_new(200, 100);
+
+        assert_eq!(map.get(0, 100), Some(100));
+        assert_eq!(map.get(100, 100), None);
+        assert_eq!(map.get(200, 100), Some(100));
+        assert_eq!(map.mapped_len(), 200);
+    }
+
+    #[test]
+    fn test_put_new_lower_bound_condition() {
+        let mut map = SparseMap::<Bytes>::default();
+        map.put_new(200, Bytes::from_static(&[2; 100]));
+        map.put_new(100, Bytes::from_static(&[1; 100]));
+        map.put_new(150, Bytes::from_static(&[3; 50]));
+
+        let mut blocks_found = Vec::new();
+        for node in map.blocks.iter() {
+            blocks_found.push(node.range());
+        }
+        assert_eq!(blocks_found, vec![100..200, 200..300,]);
     }
 }
