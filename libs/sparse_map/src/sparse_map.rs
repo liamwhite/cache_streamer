@@ -39,6 +39,31 @@ impl<'a, T> KeyAdapter<'a> for NodeTreeAdapter<T> {
     }
 }
 
+trait CursorOperations<T> {
+    fn get(&self) -> Option<&Node<T>>;
+    fn move_next(&mut self);
+}
+
+impl<T> CursorOperations<T> for Cursor<'_, NodeTreeAdapter<T>> {
+    fn get(&self) -> Option<&Node<T>> {
+        self.get()
+    }
+
+    fn move_next(&mut self) {
+        self.move_next()
+    }
+}
+
+impl<T> CursorOperations<T> for CursorMut<'_, NodeTreeAdapter<T>> {
+    fn get(&self) -> Option<&Node<T>> {
+        self.get()
+    }
+
+    fn move_next(&mut self) {
+        self.move_next()
+    }
+}
+
 /// A sparse mapping of [`usize`]-bounded intervals to [`ContiguousCollection`]s of type `T`.
 ///
 /// When `T` is [`bytes::Bytes`], [`SparseMap`] provides the semantics of a sparse file, which
@@ -115,12 +140,10 @@ where
 
     /// Returns the range of indices which are covered by the sparse map.
     pub fn len(&self) -> usize {
-        let start = self.blocks.front().get().map_or(0, |n| n.start);
-        let end = self
-            .blocks
-            .back()
-            .get()
-            .map_or(0, |n| n.start + n.block.len());
+        let blocks = &self.blocks;
+
+        let start = blocks.front().get().map_or(0, |n| n.start);
+        let end = blocks.back().get().map_or(0, |n| n.start + n.block.len());
 
         end - start
     }
@@ -130,72 +153,34 @@ where
         self.blocks.is_empty()
     }
 
-    // NB: the following two methods are identical but differ only in mutability.
-
-    fn walk_discontinuous_regions_mut<C, F>(
-        &mut self,
-        mut offset: usize,
-        mut data: C,
-        mut on_hole: F,
-    ) where
+    fn walk_discontinuous_regions_mut<C, F>(&mut self, offset: usize, data: C, on_hole: F)
+    where
         C: ContiguousCollection<Slice = C>,
         F: FnMut(&mut CursorMut<'_, NodeTreeAdapter<T>>, usize, C),
     {
         let mut it = self.blocks.upper_bound_mut(Bound::Included(&offset));
-        let requested_range = offset..(offset + data.len());
-
-        // Special case for block before first.
-        match it.get() {
-            Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
-                // We are already inside this block, so skip it.
-                let data_advance = data.len().min(node.block.len() - (offset - node.start));
-                data = data.slice(data_advance..data.len());
-                offset += data_advance;
-            }
-            _ => {
-                // Block before first, if extant, does not intersect.
-            }
-        }
-
-        // Reposition to exclusive lower bound. (Inclusive case is handled above.)
-        it.move_next();
-
-        while !data.is_empty() {
-            let requested_range = offset..(offset + data.len());
-            let data_advance = match it.get() {
-                Some(node) if range::gte_intersecting(&requested_range, &node.range()) => {
-                    // We are already inside this block, so skip it.
-                    let data_advance = data.len().min(node.block.len() - (offset - node.start));
-                    it.move_next();
-
-                    data_advance
-                }
-                Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
-                    // We intersect a block at a higher start, but there is a hole here.
-                    let data_advance = data.len().min(node.start - offset);
-                    on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
-
-                    data_advance
-                }
-                _ => {
-                    // No intersections. If the next block exists, it is higher.
-                    on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
-
-                    break;
-                }
-            };
-
-            data = data.slice(data_advance..data.len());
-            offset += data_advance;
-        }
+        Self::walk_discontinuous_regions_with_cursor(offset, data, on_hole, &mut it);
     }
 
-    fn walk_discontinuous_regions<C, F>(&self, mut offset: usize, mut data: C, mut on_hole: F)
+    fn walk_discontinuous_regions<C, F>(&self, offset: usize, data: C, on_hole: F)
     where
         C: ContiguousCollection<Slice = C>,
         F: FnMut(&mut Cursor<'_, NodeTreeAdapter<T>>, usize, C),
     {
         let mut it = self.blocks.upper_bound(Bound::Included(&offset));
+        Self::walk_discontinuous_regions_with_cursor(offset, data, on_hole, &mut it);
+    }
+
+    fn walk_discontinuous_regions_with_cursor<C, F, I>(
+        mut offset: usize,
+        mut data: C,
+        mut on_hole: F,
+        it: &mut I,
+    ) where
+        C: ContiguousCollection<Slice = C>,
+        F: FnMut(&mut I, usize, C),
+        I: CursorOperations<T>,
+    {
         let requested_range = offset..(offset + data.len());
 
         // Special case for block before first.
@@ -227,13 +212,13 @@ where
                 Some(node) if range::lt_intersecting(&requested_range, &node.range()) => {
                     // We intersect a block at a higher start, but there is a hole here.
                     let data_advance = data.len().min(node.start - offset);
-                    on_hole(&mut it, offset, data.slice_unshare(0..data_advance));
+                    on_hole(it, offset, data.slice_unshare(0..data_advance));
 
                     data_advance
                 }
                 _ => {
                     // No intersections. If the next block exists, it is higher.
-                    on_hole(&mut it, offset, data.slice_unshare(0..data.len()));
+                    on_hole(it, offset, data.slice_unshare(0..data.len()));
 
                     break;
                 }
